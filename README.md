@@ -62,7 +62,18 @@
 - 新增 **AI 工坊 / 开发者备忘录(SQLite) / 编程练习场 / 速查学习** 四大内容模块的雏形；
 - 安全加固：会话令牌、Host/Origin 校验（防 DNS rebinding）、CSP、AI 供应商地址白名单。
 
-### v4.0 — 跨越式升级（当前版本）
+### v5.0 — Agent 生态（当前版本）
+| 方向 | 内容 |
+|------|------|
+| 🧩 Agent Skills | 12 个内置 SKILL.md 技能（开放标准），一键安装到 `~/.avenger/skills`，扫描 Claude 技能目录，支持自建 |
+| 🔌 MCP 生态 | 18 个精选 MCP 服务器目录 + 本机 5 类客户端配置扫描（Claude Desktop/Code、Cursor、VS Code、.mcp.json）+ 一键生成接入配置；**内置纯标准库 stdio MCP Server**（`avenger_mcp_server.py`，5 个工具） |
+| 🕸️ Harness 工坊 | 单文件零依赖 Coding-Agent 框架生成器（function-calling 循环、工具注册、越界防护、本地记忆） |
+| 🧠 记忆·上下文 | Agent 长期记忆（SQLite，5 类目检索）+ 项目上下文包生成（CONTEXT_PACK.md：概况/结构/关键文件/符号清单） |
+| 🏭 模型工坊 | 量化档位×显存测算（权重/KV 拆解）、本机 GPU 推荐组合、Ollama/llama.cpp 部署命令；训练侧 6 大框架配方（Unsloth/LLaMA-Factory/TRL/Axolotl/torchtune/从零）、六步工作流、数据集体检器、训练显存预估、配方生成 |
+| 🖥️ AI-IDE | CLAUDE.md / AGENTS.md / .cursorrules / copilot-instructions 生成器 |
+| 🎨 UI/UX | 引入 Anime.js 编排（弹簧入场+数字滚动，离线优雅降级）；编辑部式 masthead、发丝线台账行、非对称栅格，摆脱均质卡片布局 |
+
+### v4.0 — 跨越式升级
 | 方向 | 升级内容 |
 |------|----------|
 | ⚡ 性能 | 粒子脚本不再阻塞首屏（离线自动切 canvas 引擎）；驾驶舱快照秒开；环境扫描多线程并行（3-6×）；包计数 `importlib.metadata`（~10×） |

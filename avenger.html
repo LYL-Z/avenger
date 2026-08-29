@@ -4,11 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="avenger-token" content="%%AVENGER_TOKEN%%">
-<title>Avenger V4.0 — 全栈开发者全景工作台</title>
+<title>Avenger V5.0 — 全栈开发者全景工作台</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23e07856'/%3E%3Ctext x='32' y='44' font-family='Georgia,serif' font-size='36' font-weight='bold' fill='%23fff' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
 <style>
 /* ================================================================
-   Avenger V4.0 — Liquid Glass Design System
+   Avenger V5.0 — Liquid Glass Design System
    全场景液态玻璃 · 五层材质规范 · 弹簧物理动效
    ================================================================ */
 :root{
@@ -586,6 +586,63 @@ html.glass-off .glass::after,html.glass-off .bg-blob{display:none}
 .scan-progress{margin-top:10px;max-width:460px}
 @media (max-width:900px){.pet-pick{grid-template-columns:repeat(3,1fr)}}
 
+/* ===== V5.0 编辑部式设计语言（对标 Codex / Claude Code 的克制密度 + 苹果/华为的排版层级） ===== */
+.masthead{padding:26px 28px 22px;border-radius:var(--r-lg);margin-bottom:18px;position:relative;overflow:hidden}
+.masthead .kicker{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--accent);font-weight:600;display:flex;align-items:center;gap:10px}
+.masthead .kicker::before{content:'';width:22px;height:2px;background:var(--accent);border-radius:2px}
+.masthead h1{font-family:var(--font-serif);font-size:clamp(24px,3.2vw,34px);font-weight:700;letter-spacing:-.03em;line-height:1.14;margin:10px 0 6px;text-wrap:balance}
+.masthead .lede{font-size:13.5px;color:var(--text-2);max-width:62ch;line-height:1.6}
+.masthead .mh-foot{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-top:14px}
+.mh-actions{display:flex;gap:8px;flex-wrap:wrap}
+/* 大数字统计行：发丝线分隔，告别四等分卡片 */
+.statline{display:flex;flex-wrap:wrap;margin-top:18px;border-top:.5px solid var(--glass-border-soft);padding-top:14px}
+.statline .st{padding:2px 26px 2px 0;margin-right:26px;border-right:.5px solid var(--border)}
+.statline .st:last-child{border-right:0}
+.statline .st b{display:block;font-family:var(--font-serif);font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
+.statline .st span{font-size:10.5px;color:var(--text-3);letter-spacing:.08em;text-transform:uppercase}
+/* 台账行：信息密度 + 发丝线，替代均质卡片海 */
+.ledger{border-radius:var(--r-md);overflow:hidden}
+.ledger-row{display:grid;align-items:center;gap:12px;padding:11px 14px;border-bottom:.5px solid var(--border);transition:background .15s;font-size:12.5px}
+.ledger-row:last-child{border-bottom:0}
+.ledger-row:hover{background:var(--glass-inner)}
+.ledger-head{padding:8px 14px;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-4);font-weight:600;border-bottom:.5px solid var(--glass-border-soft)}
+/* 非对称栅格 */
+.split-64{display:grid;grid-template-columns:1.7fr 1fr;gap:16px;align-items:start}
+.split-37{display:grid;grid-template-columns:1fr 1.9fr;gap:16px;align-items:start}
+@media(max-width:1000px){.split-64,.split-37{grid-template-columns:1fr}}
+/* 章节序号标题（编辑部风） */
+.hsec{display:flex;align-items:baseline;gap:10px;margin:22px 0 12px}
+.hsec .no{font-family:var(--font-mono);font-size:11px;color:var(--accent);font-weight:700}
+.hsec h3{font-family:var(--font-serif);font-size:16px;font-weight:600;letter-spacing:-.01em}
+.hsec .rule{flex:1;height:.5px;background:var(--glass-border-soft);align-self:center}
+/* 代码块：带标题栏 + 复制 */
+.code-block{border-radius:12px;overflow:hidden;border:.5px solid var(--glass-border-soft);background:rgba(0,0,0,.30)}
+html[data-theme="light"] .code-block{background:rgba(20,16,12,.88)}
+.code-head{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:rgba(255,255,255,.05);border-bottom:.5px solid rgba(255,255,255,.08)}
+.code-head b{font-family:var(--font-mono);font-size:11px;color:#c8c0b8;font-weight:600}
+.code-block pre{margin:0;padding:12px 14px;overflow:auto;max-height:420px;font-family:var(--font-mono);font-size:11.5px;line-height:1.6;color:#d8e4d0;white-space:pre-wrap;word-break:break-word}
+/* 量化档位选择卡 */
+.quant-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.quant-card{padding:10px 12px;border-radius:12px;cursor:pointer;border:.5px solid var(--glass-border-soft);background:var(--glass-inner);transition:all .18s var(--spring)}
+.quant-card:hover{border-color:var(--accent-g)}
+.quant-card.on{border-color:var(--accent);background:var(--accent-s);box-shadow:0 0 0 3px var(--accent-s)}
+.quant-card b{font-family:var(--font-mono);font-size:12.5px;display:block}
+.quant-card span{font-size:10px;color:var(--text-3)}
+@media(max-width:900px){.quant-grid{grid-template-columns:repeat(2,1fr)}}
+/* 管线步骤 */
+.pipeline{display:flex;gap:0;overflow-x:auto;padding:4px 0}
+.pipe-step{flex:1;min-width:150px;padding:12px 14px;border-left:.5px solid var(--border);position:relative}
+.pipe-step:first-child{border-left:0}
+.pipe-step .pn{font-family:var(--font-mono);font-size:10px;color:var(--accent);font-weight:700}
+.pipe-step b{display:block;font-size:13px;margin:3px 0}
+.pipe-step span{font-size:11px;color:var(--text-3);line-height:1.5;display:block}
+/* 记忆条目 */
+.mem-item{padding:10px 14px;border-radius:12px;border:.5px solid var(--glass-border-soft);background:var(--glass-inner);margin-bottom:8px}
+.mem-item .mk{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);font-weight:700}
+/* 动画初始态（Anime.js 编排） */
+.a-init{opacity:0;transform:translateY(16px)}
+html.reduce-motion .a-init,html.reduce-auto .a-init{opacity:1;transform:none}
+
 </style>
 </head>
 <body>
@@ -674,7 +731,7 @@ html.glass-off .glass::after,html.glass-off .bg-blob{display:none}
   <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="brand-logo" title="双击折叠侧边栏" ondblclick="toggleSidebarFold()">A</div>
-      <div class="brand-text"><div class="brand-name">Avenger</div><div class="brand-sub">V4.0 · 全景工作台</div></div>
+      <div class="brand-text"><div class="brand-name">Avenger</div><div class="brand-sub">V5.0 · 全景工作台</div></div>
       <button type="button" class="btn btn-sm btn-icon" style="margin-left:auto" onclick="toggleSidebarFold()" title="折叠侧边栏" aria-label="折叠侧边栏"><svg viewBox="0 0 24 24"><use href="#i-sidebar"/></svg></button>
     </div>
     <nav class="sidebar-nav" id="sidebarNav">
@@ -686,6 +743,9 @@ html.glass-off .glass::after,html.glass-off .bg-blob{display:none}
       <div class="nav-section">工具</div>
       <button type="button" class="nav-item" data-module="toolbox"><svg viewBox="0 0 24 24"><use href="#i-wrench"/></svg><span class="nav-label">开发者工具箱</span><span class="nav-kbd">4</span></button>
       <button type="button" class="nav-item" data-module="studio"><svg viewBox="0 0 24 24"><use href="#i-zap"/></svg><span class="nav-label">AI 工坊</span></button>
+      <button type="button" class="nav-item" data-module="agenthut"><svg viewBox="0 0 24 24"><use href="#i-puzzle"/></svg><span class="nav-label">Agent 工坊</span><span class="nav-kbd">A</span></button>
+      <button type="button" class="nav-item" data-module="memctx"><svg viewBox="0 0 24 24"><use href="#i-layers"/></svg><span class="nav-label">记忆 · 上下文</span></button>
+      <button type="button" class="nav-item" data-module="forge"><svg viewBox="0 0 24 24"><use href="#i-cpu"/></svg><span class="nav-label">模型工坊</span></button>
       <button type="button" class="nav-item" data-module="memo"><svg viewBox="0 0 24 24"><use href="#i-save"/></svg><span class="nav-label">开发者备忘录</span></button>
       <button type="button" class="nav-item" data-module="dojo"><svg viewBox="0 0 24 24"><use href="#i-code"/></svg><span class="nav-label">练习场</span></button>
       <button type="button" class="nav-item" data-module="learn"><svg viewBox="0 0 24 24"><use href="#i-keyboard"/></svg><span class="nav-label">速查学习</span></button>
@@ -725,7 +785,7 @@ html.glass-off .glass::after,html.glass-off .bg-blob{display:none}
       <!-- 模块内容由 JS 注入 -->
     </div>
     <div class="footer-bar">
-      <div><strong style="font-family:var(--font-serif)">Avenger V4.0</strong> · Liquid Glass · 纯本地运行 · <span class="pulse-dot" style="display:inline-block;vertical-align:middle;margin-right:4px"></span><span id="heartbeat" style="color:var(--success)">在线</span> · <span id="footPulse" style="color:var(--text-3)">Ctrl+K 命令</span></div>
+      <div><strong style="font-family:var(--font-serif)">Avenger V5.0</strong> · Liquid Glass · 纯本地运行 · <span class="pulse-dot" style="display:inline-block;vertical-align:middle;margin-right:4px"></span><span id="heartbeat" style="color:var(--success)">在线</span> · <span id="footPulse" style="color:var(--text-3)">Ctrl+K 命令</span></div>
       <div><a href="#" onclick="showOpLogs();return false">日志</a><a href="#" onclick="openUndoHistory();return false">撤销</a><a href="#" onclick="openBatFallback();return false">命令行兜底</a><a href="#" onclick="shutdownServer();return false">关闭服务</a></div>
     </div>
   </div>
@@ -759,7 +819,7 @@ html.glass-off .glass::after,html.glass-off .bg-blob{display:none}
 <div class="undo-bar glass-strong" id="undoBar"></div>
 <script>
 /* ================================================================
-   V4.0 核心框架
+   V5.0 核心框架
    ================================================================ */
 const API='';
 const AVENGER_TOKEN=(document.querySelector('meta[name="avenger-token"]')||{}).content||'';
@@ -990,7 +1050,7 @@ function toggleEyeCare(){
 if(prefs.get('eyeCare',false)){document.body.classList.add('eye-care');eyeCareOn=true}
 
 /* 模块导航 — 用 token 丢弃过期异步渲染，避免侧边栏“点了没反应” */
-const MODULE_TITLES={dashboard:'总览驾驶舱',python:'Python 环境管理',languages:'多语言运行时',packages:'包管理器',toolbox:'开发者工具箱',studio:'AI 工坊',memo:'开发者备忘录',dojo:'编程练习场',learn:'速查学习',database:'数据库管理',git:'Git 可视化辅助',ports:'端口与进程',hardware:'硬件监控',health:'编程健康护航',plugins:'插件市场',settings:'设置'};
+const MODULE_TITLES={dashboard:'总览驾驶舱',python:'Python 环境管理',languages:'多语言运行时',packages:'包管理器',toolbox:'开发者工具箱',studio:'AI 工坊',agenthut:'Agent 工坊 · Skills / MCP / Harness',memctx:'Agent 记忆与代码库上下文',forge:'模型工坊 · 部署量化与训练微调',memo:'开发者备忘录',dojo:'编程练习场',learn:'速查学习',database:'数据库管理',git:'Git 可视化辅助',ports:'端口与进程',hardware:'硬件监控',health:'编程健康护航',plugins:'插件市场',settings:'设置'};
 let currentModule='dashboard',navToken=0;
 function stillOn(name,token){return currentModule===name&&navToken===token}
 function toggleSidebarFold(){
@@ -1033,7 +1093,7 @@ function switchModule(name){
     dashboard:loadDashboard,python:loadPythonModule,languages:loadLanguages,packages:loadPackagesModule,
     hardware:loadHardwareModule,ports:loadPorts,toolbox:initToolbox,health:initHealth,
     plugins:loadPlugins,git:loadGit,database:loadDatabase,settings:loadSettings,
-    studio:loadStudio,memo:loadMemo,dojo:loadDojo,learn:loadLearn
+    studio:loadStudio,agenthut:loadAgentHut,memctx:loadMemCtx,forge:loadForge,memo:loadMemo,dojo:loadDojo,learn:loadLearn
   };
   Avenger._plugins.forEach(p=>{if(p.module===name&&typeof p.render==='function')loaders[name]=p.render});
   const fn=loaders[name];
@@ -1173,6 +1233,51 @@ async function initParticles(){
 }
 
 /* ================================================================
+   Anime.js 编排（动态加载，失败优雅回退 CSS 过渡）
+   ================================================================ */
+let _animeLoading=null;
+function loadAnime(){
+  if(window.anime)return Promise.resolve(window.anime);
+  if(_animeLoading)return _animeLoading;
+  _animeLoading=new Promise(res=>{
+    const s=document.createElement('script');
+    s.src='https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js';
+    s.async=true;
+    const done=()=>res(window.anime||null);
+    s.onload=done;s.onerror=()=>res(null);
+    document.head.appendChild(s);
+    setTimeout(done,6000);
+  });
+  return _animeLoading;
+}
+async function choreo(scope){
+  if(!scope)return;
+  const els=scope.querySelectorAll('.a-init');
+  if(!els.length)return;
+  if(document.documentElement.classList.contains('reduce-motion')||(matchMedia('(prefers-reduced-motion: reduce)').matches&&!prefs.get('reduceMotion','auto')!=='off')){
+    els.forEach(el=>{el.style.opacity='1';el.style.transform='none'});return;
+  }
+  const a=await loadAnime();
+  if(!a){
+    els.forEach((el,i)=>setTimeout(()=>{el.style.transition='all .45s var(--ease-out)';el.style.opacity='1';el.style.transform='none'},i*45));
+    scope.querySelectorAll('[data-count]').forEach(el=>{el.textContent=Number(el.dataset.count||0).toLocaleString()});
+    return;
+  }
+  a({targets:els,translateY:[16,0],opacity:[0,1],duration:760,delay:a.stagger(42),easing:'spring(1, 80, 12, 6)'});
+  scope.querySelectorAll('[data-count]').forEach(el=>{
+    const target=parseFloat(el.dataset.count)||0;
+    const o={v:0};
+    a({targets:o,v:target,round:1,duration:950,easing:'easeOutExpo',update:()=>{el.textContent=(el.dataset.count.includes('.')?o.v.toFixed(1):Math.round(o.v).toLocaleString())}});
+  });
+}
+function downloadText(name,text){
+  const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=name;a.click();
+  URL.revokeObjectURL(url);toast('已下载 '+name,'success');
+}
+
+/* ================================================================
    数字动画
    ================================================================ */
 function animateNum(el,target,duration=600){
@@ -1297,38 +1402,54 @@ function paintDashboard(token,ov,hw,lang,logs,fromCache){
   const envRows=[...environments].sort((a,b)=>(favs.has(b.id)?1:0)-(favs.has(a.id)?1:0)).slice(0,7);
   const scanning=ov&&ov.scanning;
   renderModule('dashboard',`
-    <div class="workbench-hero glass">
-      <div style="min-width:0">
-        <div class="hero-greet">${part.hi}，工作台已就绪${fromCache?` <span class="badge badge-neutral" style="vertical-align:middle" title="使用上次快照秒开，正在后台刷新">快照</span>`:''}</div>
-        <div class="hero-meta">${part.line} · ${scanning?'正在扫描环境…':(((ov&&ov.total_environments)||environments.length||0)+' 个 Python 环境')} · 健康 ${h}/100 · 缓存 ${esc((ov&&ov.cache_size_human)||'—')}</div>
-        ${scanning?`<div class="scan-progress"><div class="progress"><div class="progress-fill" style="width:${(ov&&ov.scan_progress)||5}%"></div></div><div style="font-size:11px;color:var(--text-3);margin-top:4px">${esc((ov&&ov.scan_message)||'扫描中…')}</div></div>`:''}
+    <div class="masthead glass a-init">
+      <div class="kicker">${esc(part.hi)} · ${new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'})}${fromCache?' · 快照':''}</div>
+      <h1>${scanning?'正在盘点你的开发环境':'工作台已就绪，一切尽在掌握'}</h1>
+      <p class="lede">${part.line}${fromCache?' · 正在后台刷新最新数据':''}</p>
+      ${scanning?`<div class="scan-progress"><div class="progress"><div class="progress-fill" style="width:${(ov&&ov.scan_progress)||5}%"></div></div><div style="font-size:11px;color:var(--text-3);margin-top:4px">${esc((ov&&ov.scan_message)||'扫描中…')}</div></div>`:''}
+      <div class="statline">
+        <div class="st"><b data-count="${(ov&&ov.total_environments)||environments.length||0}">0</b><span>Python 环境</span></div>
+        <div class="st"><b data-count="${(ov&&ov.total_packages)||0}">0</b><span>已装包</span></div>
+        <div class="st"><b>${esc((ov&&ov.cache_size_human)||'—')}</b><span>PIP 缓存</span></div>
+        <div class="st"><b data-count="${h}">0</b><span>健康度 /100</span></div>
+        <div class="st"><b data-count="${(ov&&ov.virtual_environments)||0}">0</b><span>venv / conda</span></div>
       </div>
-      <div class="hero-actions">
-        <button class="btn btn-primary" onclick="openCommandPalette()">${icon('i-search')} 命令面板</button>
-        <button class="btn" onclick="switchModule('python')">${icon('i-python')} 进入 Python</button>
-        <button class="btn" onclick="rescan()">${icon('i-refresh')} 重新扫描</button>
+      <div class="mh-foot">
+        <div class="mh-actions">
+          <button class="btn btn-primary" onclick="openCommandPalette()">${icon('i-search')} 命令面板 <span class="cm-kbd" style="margin-left:2px">Ctrl K</span></button>
+          <button class="btn" onclick="switchModule('python')">${icon('i-python')} 环境管理</button>
+          <button class="btn" onclick="rescan()">${icon('i-refresh')} 重新扫描</button>
+        </div>
+        <span style="font-size:11px;color:var(--text-4)">${scanning?'扫描于 '+esc((ov&&ov.scan_time)||'—'):'上次扫描 '+esc((ov&&ov.scan_time)||'—')}</span>
       </div>
     </div>
-    <div class="grid grid-4 reveal">
-      <div class="stat-card glass"><div class="stat-top"><div class="stat-label">Python 环境</div><div class="stat-icon" style="background:var(--info-s);color:var(--info)">${icon('i-python')}</div></div><div class="stat-value" id="statEnvs">${(ov&&ov.total_environments)||'—'}</div><div class="stat-foot" id="statEnvsFoot">${scanning?'扫描中…':('扫描于 '+((ov&&ov.scan_time)||'—'))}</div></div>
-      <div class="stat-card glass"><div class="stat-top"><div class="stat-label">虚拟环境</div><div class="stat-icon" style="background:var(--accent-s);color:var(--accent)">${icon('i-layers')}</div></div><div class="stat-value" id="statVenv">${(ov&&ov.virtual_environments)||'—'}</div><div class="stat-foot">venv / conda</div></div>
-      <div class="stat-card glass"><div class="stat-top"><div class="stat-label">PIP 缓存</div><div class="stat-icon" style="background:var(--warning-s);color:var(--warning)">${icon('i-save')}</div></div><div class="stat-value" style="font-size:22px" id="statCache">${(ov&&ov.cache_size_human)||'—'}</div><div class="stat-foot"><a href="#" onclick="switchModule('python');return false">管理缓存</a></div></div>
-      <div class="stat-card glass"><div class="stat-top"><div class="stat-label">平均健康度</div><div class="stat-icon" style="background:var(--success-s);color:var(--success)">${icon('i-heart')}</div></div><div class="stat-value" style="color:${hc}">${h}<span style="font-size:14px;color:var(--text-3)">/100</span></div><div class="stat-foot">${(ov&&ov.total_packages)||0} 个包已安装</div></div>
-    </div>
-    <div class="grid grid-2" style="margin-top:16px">
-      <div class="card glass reveal">
-        <div class="card-head"><div><div class="card-title">${icon('i-layers')} 环境速览</div><div class="card-desc">星标置顶 · 点击进入包管理</div></div><button class="btn btn-sm" onclick="switchModule('python')">全部</button></div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          ${envRows.length?envRows.map(e=>`<button type="button" class="env-chip" onclick="selectedPkgEnv='${e.id}';switchModule('packages')">
+    <div class="split-64">
+      <div>
+        <div class="hsec a-init"><span class="no">01</span><h3>环境台账</h3><div class="rule"></div><button class="btn btn-sm" onclick="switchModule('python')">全部管理</button></div>
+        <div class="ledger glass a-init">
+          <div class="ledger-head">健康度 / 类型 / 版本 / PATH / 路径</div>
+          ${envRows.length?envRows.map(e=>`<div class="ledger-row" style="grid-template-columns:44px 110px 90px 96px 1fr auto;cursor:pointer" onclick="selectedPkgEnv='${e.id}';switchModule('packages')">
             ${healthRing(((e.health)||{score:80}).score)}
-            <div style="min-width:0;text-align:left"><strong>${esc(e.type)} ${esc(e.version)}</strong><div class="mono" style="font-size:10px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.path)}</div></div>
+            ${typeBadge(e.type)}
+            <strong class="mono">${esc(e.version)}</strong>
+            ${pathStatus(e)}
+            <span class="mono" style="font-size:10.5px;color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(e.path)}">${esc(e.path)}</span>
             <span class="star ${favs.has(e.id)?'on':''}" onclick="event.stopPropagation();toggleFavEnv('${e.id}',this)">${icon('i-star')}</span>
-          </button>`).join(''):'<div class="empty-state">暂无环境，点重新扫描</div>'}
+          </div>`).join(''):'<div class="empty-state">暂无环境，点重新扫描</div>'}
         </div>
       </div>
-      <div class="card glass reveal">
-        <div class="card-head"><div><div class="card-title">${icon('i-clock')} 最近操作</div><div class="card-desc">本地日志，不上传</div></div><button class="btn btn-sm" onclick="showOpLogs()">全部</button></div>
-        <div>${recent.length?recent.map(l=>{const x=parseLogLine(l);return `<div class="activity-line"><span class="mono" style="color:var(--text-4);flex-shrink:0">${esc(x.t)}</span><span style="color:var(--text-2)">${esc(x.msg)}</span></div>`}).join(''):'<div style="color:var(--text-3);font-size:12px;padding:12px 0">尚无操作记录。诊断、安装、卸载会出现在这里。</div>'}</div>
+      <div>
+        <div class="hsec a-init"><span class="no">02</span><h3>最近操作</h3><div class="rule"></div><button class="btn btn-sm" onclick="showOpLogs()">日志</button></div>
+        <div class="glass a-init" style="border-radius:var(--r-md);padding:6px 14px 10px">
+          ${recent.length?recent.map(l=>{const x=parseLogLine(l);return `<div class="activity-line"><span class="mono" style="color:var(--text-4);flex-shrink:0">${esc(x.t)}</span><span style="color:var(--text-2)">${esc(x.msg)}</span></div>`}).join(''):'<div style="color:var(--text-3);font-size:12px;padding:12px 0">尚无操作记录。</div>'}
+        </div>
+        <div class="hsec a-init"><span class="no">03</span><h3>直达</h3><div class="rule"></div></div>
+        <div class="glass a-init" style="border-radius:var(--r-md);padding:12px 14px;display:flex;flex-direction:column;gap:7px">
+          <button class="btn btn-sm" style="justify-content:flex-start" onclick="switchModule('studio')">${icon('i-zap')} AI 工坊 · 流式对话</button>
+          <button class="btn btn-sm" style="justify-content:flex-start" onclick="switchModule('agenthut')">${icon('i-puzzle')} Agent 工坊 · Skills / MCP</button>
+          <button class="btn btn-sm" style="justify-content:flex-start" onclick="switchModule('forge')">${icon('i-cpu')} 模型工坊 · 量化与微调</button>
+          <button class="btn btn-sm" style="justify-content:flex-start" onclick="switchModule('dojo')">${icon('i-code')} 练习场 · 26 题 kata</button>
+        </div>
       </div>
     </div>
     <div class="grid grid-3" style="margin-top:16px">
@@ -1344,15 +1465,6 @@ function paintDashboard(token,ov,hw,lang,logs,fromCache){
         <div class="card-head"><div><div class="card-title">${icon('i-globe')} 开发运行时</div><div class="card-desc">已检测到的语言环境</div></div><button class="btn btn-sm" onclick="switchModule('languages')">管理</button></div>
         <div style="display:flex;flex-wrap:wrap;gap:6px">
           ${langList.length?langList.map(l=>`<span class="badge ${l.installed?'badge-success':'badge-neutral'}">${esc(l.name)} ${l.installed?esc(l.version):'未安装'}</span>`).join(''):'<span style="color:var(--text-3);font-size:12px">检测中...</span>'}
-        </div>
-      </div>
-      <div class="card glass reveal">
-        <div class="card-head"><div><div class="card-title">${icon('i-zap')} 快捷操作</div><div class="card-desc">常用功能一键直达</div></div></div>
-        <div style="display:flex;flex-direction:column;gap:6px">
-          <button class="btn btn-sm" style="justify-content:flex-start" onclick="switchModule('toolbox')">${icon('i-wrench')} 开发者工具箱</button>
-          <button class="btn btn-sm" style="justify-content:flex-start" onclick="switchModule('studio')">${icon('i-zap')} AI 工坊</button>
-          <button class="btn btn-sm" style="justify-content:flex-start" onclick="switchModule('memo')">${icon('i-save')} 备忘录</button>
-          <button class="btn btn-sm" style="justify-content:flex-start" onclick="switchModule('dojo')">${icon('i-code')} 练习场</button>
         </div>
       </div>
     </div>
@@ -1495,6 +1607,9 @@ const cmCommands=[
   {icon:'i-box',label:'包管理器',mod:'packages',shortcut:'Ctrl+3'},
   {icon:'i-wrench',label:'开发者工具箱',mod:'toolbox',shortcut:'Ctrl+4'},
   {icon:'i-zap',label:'AI 工坊',mod:'studio'},
+  {icon:'i-puzzle',label:'Agent 工坊 · Skills / MCP / Harness',mod:'agenthut',shortcut:'Ctrl+A'},
+  {icon:'i-layers',label:'Agent 记忆与上下文',mod:'memctx'},
+  {icon:'i-cpu',label:'模型工坊 · 部署量化 / 训练微调',mod:'forge'},
   {icon:'i-save',label:'开发者备忘录',mod:'memo'},
   {icon:'i-code',label:'编程练习场',mod:'dojo'},
   {icon:'i-keyboard',label:'速查学习',mod:'learn'},
@@ -1606,7 +1721,7 @@ setInterval(async()=>{
 
 /* 新手引导 — 等待目标出现，不再空跳 */
 const tourSteps=[
-  {sel:'.sidebar',title:'欢迎使用 Avenger V4.0',text:'左侧是模块导航。关掉浏览器后，桌面托管小窗会继续保活。按 Ctrl+K 打开命令面板。'},
+  {sel:'.sidebar',title:'欢迎使用 Avenger V5.0',text:'左侧是模块导航。关掉浏览器后，桌面托管小窗会继续保活。按 Ctrl+K 打开命令面板。'},
   {sel:'[data-module="python"]',title:'从这里开始',text:'进入 Python 环境后，点「开始诊断」跑一遍真实检查，再按提示修复。'},
   {sel:'.topbar-actions',title:'命令面板 Ctrl+K',text:'搜索模块、执行 > scan / > theme dark / > cache purge，或查询「如何导出环境」。'},
 ];
@@ -3080,6 +3195,497 @@ async function sendAi(){
   aiSaveHist();renderAiLog();
 }
 
+/* ================================================================
+   V5.0 · Agent 工坊（Skills / MCP / Harness / IDE 配置）
+   ================================================================ */
+function genSub(btn,id,group){
+  btn.parentElement.querySelectorAll('.subtab').forEach(s=>s.classList.remove('active'));btn.classList.add('active');
+  document.querySelectorAll('.'+group).forEach(s=>s.style.display='none');
+  const el=$(id);if(el)el.style.display='block';
+}
+let _hut={skills:null,mcp:null};
+async function loadAgentHut(token){
+  const [skills,mcp]=await Promise.all([api('/api/agent/skills'),api('/api/agent/mcp')]);
+  if(!stillOn('agenthut',token))return;
+  _hut.skills=skills;_hut.mcp=mcp;
+  const nb=(skills&&skills.builtin||[]).length,ni=(skills&&skills.installed||[]).length,nm=(mcp&&mcp.registry||[]).length;
+  renderModule('agenthut',`
+    <div class="masthead glass a-init">
+      <div class="kicker">Agent Ecosystem</div>
+      <h1>Agent 工坊</h1>
+      <p class="lede">一站式管理 AI Agent 的能力供给：SKILL.md 开放标准技能库、MCP 服务器生态与本机接入、单文件 Harness 生成、AI-IDE 规则文件生成。技能安装到 <span class="mono">~/.avenger/skills</span>，与 Claude 系工具同构。</p>
+      <div class="statline">
+        <div class="st"><b data-count="${nb}">0</b><span>内置技能</span></div>
+        <div class="st"><b data-count="${ni}">0</b><span>已安装</span></div>
+        <div class="st"><b data-count="${nm}">0</b><span>MCP 服务器</span></div>
+        <div class="st"><b>1</b><span>本地 MCP Server 内置</span></div>
+      </div>
+      <div class="mh-foot"><div class="mh-actions">
+        <button class="btn btn-primary" onclick="skillCreateForm()">${icon('i-plus')} 创建技能</button>
+        <button class="btn" onclick="mcpSnippetModal()">${icon('i-plug')} 生成 MCP 接入配置</button>
+      </div><span style="font-size:11px;color:var(--text-3)">SKILL.md 遵循 agentskills.io 开放标准</span></div>
+    </div>
+    <div class="subtabs"><button class="subtab active" onclick="genSub(this,'hut-skills','hut-pane')">技能库</button><button class="subtab" onclick="genSub(this,'hut-mcp','hut-pane')">MCP 生态</button><button class="subtab" onclick="genSub(this,'hut-harness','hut-pane')">Harness 框架</button><button class="subtab" onclick="genSub(this,'hut-ide','hut-pane')">AI-IDE 配置</button></div>
+    <div id="hut-skills" class="hut-pane"></div>
+    <div id="hut-mcp" class="hut-pane" style="display:none"></div>
+    <div id="hut-harness" class="hut-pane" style="display:none"></div>
+    <div id="hut-ide" class="hut-pane" style="display:none"></div>
+  `,token);
+  if(!stillOn('agenthut',token))return;
+  renderSkillsPane();renderMcpPane();renderHarnessPane();renderIdePane();
+  choreo($('mod-agenthut'));
+}
+function renderSkillsPane(){
+  const s=_hut.skills;if(!s)return void($('hut-skills').innerHTML='<div class="empty-state">加载失败</div>');
+  $('hut-skills').innerHTML=`
+    <div class="hsec"><span class="no">01</span><h3>内置技能库</h3><div class="rule"></div><span style="font-size:11px;color:var(--text-3)">点击安装 → ~/.avenger/skills/&lt;id&gt;/SKILL.md</span></div>
+    <div class="tool-grid">${(s.builtin||[]).map(k=>`<div class="tool-card glass-light" style="cursor:default">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start"><div class="tool-card-name">${esc(k.name)}</div><span class="badge ${k.installed?'badge-success':'badge-neutral'}" style="flex-shrink:0">${k.installed?'已安装':'内置'}</span></div>
+      <div class="tool-card-desc" style="min-height:32px">${esc(k.desc)}</div>
+      <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap">${(k.tags||[]).map(t=>`<span class="badge badge-accent" style="font-size:9.5px">${esc(t)}</span>`).join('')}
+        <button class="btn btn-sm" style="margin-left:auto" onclick="skillPreview('${k.id}')">预览</button>
+        ${k.installed?`<button class="btn btn-sm btn-danger" onclick="skillUninstall('${k.id}')">卸载</button>`:`<button class="btn btn-sm btn-primary" onclick="skillInstall('${k.id}')">安装</button>`}
+      </div></div>`).join('')}</div>
+    <div class="hsec"><span class="no">02</span><h3>本机已安装技能</h3><div class="rule"></div><span style="font-size:11px;color:var(--text-3)">含 Claude ~/.claude/skills 等目录扫描</span></div>
+    <div class="ledger">${(s.installed||[]).length?(s.installed||[]).map(k=>`<div class="ledger-row" style="grid-template-columns:1fr 1.6fr auto auto">
+      <strong>${esc(k.name)}</strong><span class="mono" style="font-size:10.5px;color:var(--text-3)">${esc(k.path)}</span>
+      <span class="badge badge-info">${esc(k.scope)}</span>
+      ${k.scope==='avenger'?`<button class="btn btn-sm btn-danger" onclick="skillUninstall('${esc(k.id)}')">${icon('i-trash')}</button>`:'<span></span>'}
+    </div>`).join(''):'<div class="empty-state" style="padding:22px">还没有已安装技能，点上方「安装」试试</div>'}</div>
+    <div style="font-size:11px;color:var(--text-3);margin-top:10px">${icon('i-info')} 技能目录：<span class="mono">${esc(s.dirs.avenger)}</span> · Claude: <span class="mono">${esc(s.dirs.claude)}</span></div>`;
+}
+async function skillInstall(id){
+  const d=await api('/api/agent/skills/install',{method:'POST',body:{id}});
+  if(d?.ok){toast('技能已安装','success');_hut.skills=await api('/api/agent/skills');renderSkillsPane()}
+  else toast(d?.error||'安装失败','error');
+}
+async function skillUninstall(id){
+  confirmModal('卸载技能','将从 ~/.avenger/skills 移除该技能目录。',async()=>{
+    const d=await api('/api/agent/skills/uninstall',{method:'POST',body:{id}});
+    if(d?.ok){toast('已卸载','success');_hut.skills=await api('/api/agent/skills');renderSkillsPane()}
+    else toast(d?.error||'失败','error');
+  },{iconClass:'danger',confirmText:'卸载'});
+}
+async function skillPreview(id){
+  const s=(_hut.skills.builtin||[]).find(k=>k.id===id);if(!s)return;
+  const full=s.desc+'\\n\\n（完整 SKILL.md 内容见安装后的文件；此处展示摘要）';
+  showModal(`<div class="modal-title">${esc(s.name)} · SKILL.md</div><div class="modal-body">
+    <div class="code-block"><div class="code-head"><b>SKILL.md</b><button class="btn btn-sm" onclick="skillInstall('${id}')">${icon('i-check')} 安装</button></div><pre>${esc(full)}</pre></div>
+    <p style="font-size:11.5px;color:var(--text-3);margin-top:10px">${esc(s.desc)}</p></div>
+    <div class="modal-footer"><button class="btn" onclick="closeModal()">关闭</button></div>`);
+}
+function skillCreateForm(){
+  showModal(`<div class="modal-title">创建技能（开放标准）</div><div class="modal-body">
+    <input id="skName" placeholder="技能名（小写字母/数字/连字符，如 my-deploy）" style="width:100%;margin-bottom:8px">
+    <input id="skDesc" placeholder="一句话描述（模型据此决定何时调用）" style="width:100%;margin-bottom:8px">
+    <textarea id="skBody" style="width:100%;height:200px;font-family:var(--font-mono);font-size:12px" placeholder="# 技能指令 Markdown 正文&#10;## 步骤&#10;1. ..."></textarea>
+  </div><div class="modal-footer"><button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="doSkillCreate()">创建</button></div>`);
+}
+async function doSkillCreate(){
+  const d=await api('/api/agent/skills/create',{method:'POST',body:{name:$('skName').value,description:$('skDesc').value,body:$('skBody').value}});
+  if(d?.ok){closeModal();toast('技能已创建: '+d.id,'success');_hut.skills=await api('/api/agent/skills');renderSkillsPane()}
+  else toast(d?.error||'失败','error');
+}
+function renderMcpPane(){
+  const m=_hut.mcp;if(!m)return void($('hut-mcp').innerHTML='<div class="empty-state">加载失败</div>');
+  const localRows=(m.local||[]).map(c=>{
+    const st=c.servers.length
+      ?'<span class="badge badge-success">'+c.servers.length+' 个服务器</span>'
+      :'<span class="badge badge-neutral">未配置</span>';
+    const pathCell=c.exists
+      ?'<span class="mono" style="font-size:10.5px;color:var(--text-3)">'+esc(c.path)+'</span>'
+      :'<span class="mono" style="font-size:10.5px;color:var(--text-4)">未找到 '+esc(c.path)+'</span>';
+    const subRows=c.servers.map(sv=>'<div class="ledger-row" style="grid-template-columns:120px 1fr;opacity:.75;padding-left:28px"><span class="mono" style="font-size:11px">└ '+esc(sv.name)+'</span><span class="mono" style="font-size:10.5px;color:var(--text-3)">'+esc(sv.command)+'</span></div>').join('');
+    return '<div class="ledger-row" style="grid-template-columns:130px 1fr auto"><strong>'+esc(c.client)+'</strong>'+pathCell+st+'</div>'+subRows;
+  }).join('');
+  window._mcpCmds=(m.registry||[]).map(r=>r.cmd);
+  const regRows=(m.registry||[]).map((r,ix)=>
+    '<div class="ledger-row" style="grid-template-columns:150px 110px 1fr auto">'
+    +'<strong>'+esc(r.name)+'</strong>'
+    +'<span class="badge badge-purple" style="font-size:9.5px">'+esc(r.cat)+'</span>'
+    +'<span style="color:var(--text-2);font-size:12px">'+esc(r.desc)+'</span>'
+    +'<span style="display:flex;gap:4px">'
+    +'<button class="btn btn-sm" onclick="copyPath(window._mcpCmds['+ix+'])" title="复制命令">'+icon('i-copy')+'</button>'
+    +'<button class="btn btn-sm btn-primary" data-mid="'+r.id+'" onclick="mcpSnippetModal(this.dataset.mid)">接入</button>'
+    +'</span></div>'
+  ).join('');
+  $('hut-mcp').innerHTML=
+    '<div class="hsec"><span class="no">01</span><h3>本机 MCP 接入状态</h3><div class="rule"></div><button class="btn btn-sm" onclick="loadAgentHut(navToken)">'+icon('i-refresh')+' 重扫</button></div>'
+    +'<div class="ledger">'+(localRows||'<div class="empty-state">无配置</div>')+'</div>'
+    +'<div class="hsec"><span class="no">02</span><h3>精选 MCP 服务器</h3><div class="rule"></div><span style="font-size:11px;color:var(--text-3)">官方 Registry: registry.modelcontextprotocol.io</span></div>'
+    +'<div class="ledger"><div class="ledger-head">名称 / 分类 / 说明 / 启动命令</div>'+(regRows||'')+'</div>'
+    +'<div class="hsec"><span class="no">03</span><h3>Avenger 自带 MCP Server</h3><div class="rule"></div></div>'
+    +'<div class="card glass-light" style="padding:14px">'
+    +'<p style="font-size:12.5px;color:var(--text-2);line-height:1.6">项目内置 <span class="mono">avenger_mcp_server.py</span>（纯标准库 JSON-RPC stdio），暴露 5 个工具：环境总览 / 系统状态 / 端口进程 / 备忘录搜索 / Agent 记忆搜索。让 Claude Desktop、Cursor、VS Code、Claude Code 直接读取你的本机状态。</p>'
+    +'<div class="code-block" style="margin-top:10px"><div class="code-head"><b>mcp.json</b><button class="btn btn-sm" onclick="copyPath(mcpServerJson())">'+icon('i-copy')+' 复制</button></div><pre id="mcpSelfPre">{ ... }</pre></div>'
+    +'</div>';
+  paintMcpSelf();
+}
+function mcpSnippetModal(serverId){
+  const reg=( _hut.mcp&&_hut.mcp.registry||[]);
+  const sel=serverId||((reg[0]||{}).id||'');
+  showModal(`<div class="modal-title">生成 MCP 接入配置</div><div class="modal-body">
+    <div class="toolbar" style="margin-bottom:10px">
+      <select id="mcpSrv">${reg.map(r=>`<option value="${r.id}" ${r.id===sel?'selected':''}>${esc(r.name)}</option>`).join('')}</select>
+      <select id="mcpCli"><option value="claude-desktop">Claude Desktop</option><option value="claude-code">Claude Code</option><option value="cursor">Cursor</option><option value="vscode">VS Code</option></select>
+      <input id="mcpArg" placeholder="路径等参数（可选）" style="flex:1;min-width:160px">
+    </div>
+    <div id="mcpOut" class="code-block"><div class="code-head"><b>config.json</b><button class="btn btn-sm" onclick="copyPath($('mcpJsonPre').textContent)">${icon('i-copy')}</button></div><pre id="mcpJsonPre">点击「生成」</pre></div>
+  </div><div class="modal-footer"><button class="btn" onclick="closeModal()">关闭</button><button class="btn btn-primary" onclick="doMcpSnippet()">生成</button></div>`);
+}
+async function doMcpSnippet(){
+  const d=await api('/api/agent/mcp/snippet',{method:'POST',body:{client:$('mcpCli').value,server_id:$('mcpSrv').value,extra:$('mcpArg').value}});
+  if(d?.ok){$('mcpJsonPre').textContent=d.json+(d.cli?'\n\n# CLI:\n# '+d.cli:'')}
+  else toast(d?.error||'生成失败','error');
+}
+function renderHarnessPane(){
+  $('hut-harness').innerHTML=`
+    <div class="split-64">
+      <div>
+        <div class="hsec"><span class="no">01</span><h3>Coding-Agent Harness 生成器</h3></div>
+        <p style="font-size:12.5px;color:var(--text-2);line-height:1.65;margin-bottom:12px">生成一个<strong>单文件、零依赖</strong>的 Python Agent 运行框架：OpenAI 兼容 function-calling 循环、工具注册表、路径越界防护、步数上限、本地记忆。与 DeepSeek-Harness 同类思路，拿来即改。</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="toolbar"><input id="hUrl" value="https://api.deepseek.com/v1/chat/completions" style="flex:1;min-width:220px" title="Base URL"><input id="hModel" value="deepseek-chat" style="width:150px" placeholder="模型"><input id="hSteps" type="number" value="15" min="3" max="40" style="width:80px" title="最大步数"></div>
+          <div><div style="font-size:12px;color:var(--text-3);margin-bottom:6px">启用的工具</div>
+          <div class="toolbar">${[['read_file','读文件'],['list_dir','列目录'],['run_python','跑 Python'],['http_get','HTTP GET'],['remember','写入记忆']].map(t=>`<label class="checkbox"><input type="checkbox" class="hTool" value="${t[0]}" ${t[0]==='http_get'?'':'checked'}> ${t[1]}</label>`).join('')}</div></div>
+          <div><button class="btn btn-primary" onclick="genHarness()">${icon('i-zap')} 生成 Harness</button></div>
+        </div>
+      </div>
+      <div>
+        <div class="hsec"><span class="no">02</span><h3>运行方式</h3></div>
+        <div class="code-block"><div class="code-head"><b>usage</b></div><pre>AGENT_API_KEY=sk-xxx \\
+  python agent_harness.py "你的任务"
+
+# 环境变量
+#  AGENT_BASE_URL  OpenAI 兼容端点
+#  AGENT_MODEL     模型名
+#  AGENT_WORKDIR   工作目录（越界防护）
+# 记忆写入 agent_memory.md</pre></div>
+        <div style="font-size:11.5px;color:var(--text-3);margin-top:8px">提示：先给小任务验证工具行为，再放开 run_python。</div>
+      </div>
+    </div>
+    <div id="harnessOut" style="margin-top:14px"></div>`;
+}
+async function genHarness(){
+  const tools=Array.from(document.querySelectorAll('.hTool:checked')).map(c=>c.value);
+  const d=await api('/api/agent/harness',{method:'POST',body:{base_url:$('hUrl').value.trim(),model:$('hModel').value.trim(),max_steps:parseInt($('hSteps').value)||15,tools}});
+  if(!d?.ok){toast(d?.error||'生成失败','error');return}
+  $('harnessOut').innerHTML=`<div class="code-block a-init"><div class="code-head"><b>${esc(d.filename)}</b><span style="display:flex;gap:6px"><button class="btn btn-sm" onclick="copyPath(window._harnessScript)">${icon('i-copy')} 复制</button><button class="btn btn-sm btn-primary" onclick="downloadText('${d.filename}',window._harnessScript)">${icon('i-save')} 下载</button></span></div><pre>${esc(d.script)}</pre></div>`;
+  window._harnessScript=d.script;
+  choreo($('harnessOut'));
+  toast('Harness 已生成 · '+d.tools.length+' 个工具','success');
+}
+function renderIdePane(){
+  $('hut-ide').innerHTML=`
+    <div class="split-64">
+      <div>
+        <div class="hsec"><span class="no">01</span><h3>AI-IDE 规则文件生成</h3></div>
+        <p style="font-size:12.5px;color:var(--text-2);line-height:1.65;margin-bottom:12px">为 Claude Code（CLAUDE.md）、通用 Agent（AGENTS.md）、Cursor（.cursorrules）、Copilot 生成项目规则文件。结合目录扫描结果与你的约定。</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="toolbar"><select id="ideKind" style="flex:1"><option value="claude-md">CLAUDE.md（Claude Code）</option><option value="agents-md">AGENTS.md（通用）</option><option value="cursorrules">.cursorrules（Cursor）</option><option value="copilot">copilot-instructions.md（GitHub Copilot）</option></select></div>
+          <div class="toolbar"><input id="idePath" placeholder="项目路径，如 D:\\myapp" style="flex:1;min-width:200px" class="mono"></div>
+          <div class="toolbar"><input id="ideBuild" placeholder="构建命令，如 npm run build（可选）" style="flex:1"><input id="ideTest" placeholder="测试命令，如 pytest -q（可选）" style="flex:1"></div>
+          <textarea id="ideStyle" style="width:100%;height:72px;font-size:12px" placeholder="风格约定（可选）：如 遵循现有代码风格；改动最小化；组件用函数式…"></textarea>
+          <div><button class="btn btn-primary" onclick="genIde()">${icon('i-zap')} 生成</button>
+          <button class="btn" onclick="saveIde()" id="ideSaveBtn" style="display:none">${icon('i-save')} 写入项目目录</button></div>
+        </div>
+      </div>
+      <div>
+        <div class="hsec"><span class="no">02</span><h3>为什么要给 IDE 立规矩</h3></div>
+        <p style="font-size:12.5px;color:var(--text-2);line-height:1.7">规则文件是 Coding Agent 的「项目宪法」：告诉它构建/测试命令、目录约定、禁止事项，能显著减少错误修改与幻觉 API。建议入库随仓库分发，团队共享同一套约束。</p>
+      </div>
+    </div>
+    <div id="ideOut" style="margin-top:14px"></div>`;
+}
+async function genIde(){
+  const d=await api('/api/agent/ide',{method:'POST',body:{kind:$('ideKind').value,path:$('idePath').value.trim(),build:$('ideBuild').value.trim(),test:$('ideTest').value.trim(),style:$('ideStyle').value.trim()}});
+  if(!d?.ok){toast(d?.error||'生成失败','error');return}
+  window._ideFile=d;
+  $('ideOut').innerHTML=`<div class="code-block a-init"><div class="code-head"><b>${esc(d.filename)}</b><span style="display:flex;gap:6px"><button class="btn btn-sm" onclick="copyPath(window._ideFile.content)">${icon('i-copy')} 复制</button><button class="btn btn-sm btn-primary" onclick="downloadText('${d.filename}',window._ideFile.content)">${icon('i-save')} 下载</button></span></div><pre>${esc(d.content)}</pre></div>`;
+  $('ideSaveBtn').style.display=$('idePath').value.trim()?'inline-flex':'none';
+  choreo($('ideOut'));
+}
+async function saveIde(){
+  if(!window._ideFile)return;
+  const d=await api('/api/agent/ide',{method:'POST',body:{kind:$('ideKind').value,path:$('idePath').value.trim(),build:$('ideBuild').value.trim(),test:$('ideTest').value.trim(),style:$('ideStyle').value.trim(),save:true}});
+  if(d?.ok&&d.saved){toast('已写入 '+d.saved,'success')}else toast(d?.error||'写入失败','error');
+}
+
+/* ================================================================
+   V5.0 · 记忆 · 上下文
+   ================================================================ */
+let _memQ='',_ctxScan=null;
+async function loadMemCtx(token){
+  const items=await api('/api/agent/memory');
+  if(!stillOn('memctx',token))return;
+  const list=(items&&items.items)||[];
+  renderModule('memctx',`
+    <div class="masthead glass a-init">
+      <div class="kicker">Memory & Context</div>
+      <h1>Agent 记忆 · 代码库上下文</h1>
+      <p class="lede">给 Agent 装上长期记忆（SQLite 持久化，按类目与标签检索），并把任意项目一键压成「上下文包」——概况、结构、关键文件、符号清单，直接投喂给任意 LLM。</p>
+      <div class="statline"><div class="st"><b data-count="${list.length}">0</b><span>记忆条目</span></div><div class="st"><b>5</b><span>记忆类目</span></div><div class="st"><b>∞</b><span>可索引项目</span></div></div>
+    </div>
+    <div class="subtabs"><button class="subtab active" onclick="genSub(this,'mc-mem','mc-pane')">Agent 记忆</button><button class="subtab" onclick="genSub(this,'mc-ctx','mc-pane')">代码库上下文</button></div>
+    <div id="mc-mem" class="mc-pane"></div>
+    <div id="mc-ctx" class="mc-pane" style="display:none"></div>
+  `,token);
+  if(!stillOn('memctx',token))return;
+  renderMemPane(list);renderCtxPane();
+  choreo($('mod-memctx'));
+}
+function renderMemPane(list){
+  $('mc-mem').innerHTML=`
+    <div class="split-64">
+      <div>
+        <div class="hsec"><span class="no">01</span><h3>写入记忆</h3></div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="toolbar"><select id="memKind" style="width:130px"><option value="fact">事实 fact</option><option value="preference">偏好 preference</option><option value="project">项目 project</option><option value="person">人脉 person</option><option value="insight">洞察 insight</option></select>
+          <input id="memTags" placeholder="标签，逗号分隔" style="flex:1"></div>
+          <textarea id="memBody" style="width:100%;height:90px;font-size:12.5px" placeholder="记住这件事…（如：用户偏好 pytest；生产库是 Postgres 15）"></textarea>
+          <div><button class="btn btn-primary" onclick="memSave()">${icon('i-plus')} 保存</button>
+          <button class="btn" onclick="memExport()">${icon('i-external')} 导出 Markdown</button></div>
+        </div>
+        <div style="margin-top:16px;font-size:11.5px;color:var(--text-3);line-height:1.7">${icon('i-info')} 记忆存于 <span class="mono">avenger_notes.db</span> 的 agent_memory 表；已内置同名 MCP 工具（avenger_memory_search），你的 AI 客户端可直接检索。</div>
+      </div>
+      <div>
+        <div class="hsec"><span class="no">02</span><h3>检索</h3></div>
+        <div class="search-box" style="margin-bottom:10px">${icon('i-search')}<input type="text" placeholder="搜索记忆…" value="${esc(_memQ)}" oninput="_memQ=this.value;memRefresh()"></div>
+        <div id="memList" style="max-height:56vh;overflow:auto">${memListHtml(list)}</div>
+      </div>
+    </div>`;
+}
+function memListHtml(list){
+  const q=_memQ.toLowerCase();
+  const rows=list.filter(m=>!q||(m.content+m.tags).toLowerCase().includes(q));
+  return rows.length?rows.map(m=>`<div class="mem-item"><div style="display:flex;justify-content:space-between;align-items:center"><span class="mk">${esc(m.kind)}</span><span style="display:flex;gap:6px;align-items:center"><span style="font-size:10px;color:var(--text-4)">${esc(m.created||'')}</span><button class="btn btn-sm btn-ghost btn-icon" onclick="memDel('${m.id}')" title="删除">${icon('i-trash')}</button></span></div><div style="font-size:12.5px;line-height:1.6;margin-top:3px">${esc(m.content)}</div>${m.tags?`<div style="margin-top:5px">${m.tags.split(/[,，]/).filter(Boolean).map(t=>`<span class="badge badge-accent" style="font-size:9px">${esc(t.trim())}</span>`).join(' ')}</div>`:''}</div>`).join(''):'<div class="empty-state">没有记忆</div>';
+}
+async function memRefresh(){
+  const d=await api('/api/agent/memory');
+  const box=$('memList');if(box)box.innerHTML=memListHtml((d&&d.items)||[]);
+}
+async function memSave(){
+  const d=await api('/api/agent/memory/add',{method:'POST',body:{kind:$('memKind').value,content:$('memBody').value,tags:$('memTags').value}});
+  if(d?.ok){$('memBody').value='';toast('已记住','success');memRefresh();loadMemCtx(navToken)}
+  else toast(d?.error||'失败','error');
+}
+async function memDel(id){await api('/api/agent/memory/delete',{method:'POST',body:{id}});toast('已删除','info');memRefresh();loadMemCtx(navToken)}
+async function memExport(){
+  const d=await api('/api/agent/memory/export',{method:'POST',body:{}});
+  if(d?.ok)downloadText('agent_memory.md','# Agent Memory\n\n'+d.markdown);
+}
+function renderCtxPane(){
+  $('mc-ctx').innerHTML=`
+    <div class="hsec"><span class="no">01</span><h3>项目索引</h3><div class="rule"></div></div>
+    <div class="toolbar" style="margin-bottom:12px"><input id="ctxPath" class="mono" placeholder="项目路径，如 D:\\Avenger" style="flex:1;min-width:240px"><button class="btn btn-primary" onclick="ctxScanGo()">${icon('i-search')} 扫描</button></div>
+    <div id="ctxResult"></div>`;
+}
+async function ctxScanGo(){
+  const p=($('ctxPath').value||'').trim();if(!p){toast('填写项目路径','error');return}
+  $('ctxResult').innerHTML='<div class="loading-state"><div class="spinner"></div>索引中（限深 4 层 / 3000 文件）…</div>';
+  const d=await api('/api/agent/context/scan?path='+encodeURIComponent(p));
+  if(!d?.ok){$('ctxResult').innerHTML=`<div class="empty-state">${esc(d?.error||'扫描失败')}</div>`;return}
+  _ctxScan=d;
+  const loc=d.loc>=10000?(d.loc/1000).toFixed(1)+'k':d.loc;
+  $('ctxResult').innerHTML=`
+    <div class="statline a-init" style="margin-bottom:14px">
+      <div class="st"><b data-count="${d.files}">0</b><span>文件</span></div>
+      <div class="st"><b data-count="${loc}">0</b><span>代码行</span></div>
+      <div class="st"><b>${d.languages.slice(0,3).map(l=>l[0]).join(' / ')||'—'}</b><span>主要语言</span></div>
+      <div class="st"><b style="font-size:16px;padding-top:8px">${esc(d.frameworks.join(' · ')||'—')}</b><span>技术栈线索</span></div>
+    </div>
+    <div class="toolbar" style="margin:10px 0">
+      <button class="btn btn-primary" onclick="ctxPack(false)">${icon('i-zap')} 生成上下文包</button>
+      <button class="btn" onclick="ctxPack(true)">${icon('i-save')} 生成并写入 CONTEXT_PACK.md</button>
+    </div>
+    <div class="code-block"><div class="code-head"><b>目录结构${d.tree_truncated?'（截断）':''}</b></div><pre style="max-height:260px;white-space:pre">${esc(d.tree)}</pre></div>
+    <div id="ctxPackOut" style="margin-top:12px"></div>`;
+  choreo($('ctxResult'));
+}
+async function ctxPack(save){
+  if(!_ctxScan)return;
+  const box=$('ctxPackOut');
+  box.innerHTML='<div class="loading-state"><div class="spinner"></div>压缩上下文中…</div>';
+  const d=await api('/api/agent/context/pack',{method:'POST',body:{path:_ctxScan.path,save}});
+  if(!d?.ok){box.innerHTML=`<div class="empty-state">${esc(d?.error||'失败')}</div>`;return}
+  if(save&&d.saved){box.innerHTML=`<div class="badge badge-success">${icon('i-check')} 已写入 ${esc(d.saved)} · ${d.chars} 字符</div>`;toast('上下文包已写入项目','success');return}
+  window._ctxPackText=d.pack;
+  box.innerHTML=`<div class="code-block a-init"><div class="code-head"><b>CONTEXT_PACK.md · ${d.chars} 字符</b><span style="display:flex;gap:6px"><button class="btn btn-sm" onclick="copyPath(window._ctxPackText)">${icon('i-copy')} 复制</button><button class="btn btn-sm btn-primary" onclick="downloadText('CONTEXT_PACK.md',window._ctxPackText)">${icon('i-save')} 下载</button></span></div><pre>${esc(d.pack.slice(0,4000))}${d.pack.length>4000?'\n…（预览截断，下载/复制得全文）':''}</pre></div>`;
+  choreo(box);
+}
+
+/* ================================================================
+   V5.0 · 模型工坊（本地部署·量化 / 训练微调）
+   ================================================================ */
+const QUANT_LOCAL=[
+  {id:'fp16',name:'FP16',bpw:2.0,note:'全精度基线'},{id:'q8',name:'Q8_0',bpw:1.06,note:'近无损'},
+  {id:'q6',name:'Q6_K',bpw:0.81,note:'质量极佳'},{id:'q5',name:'Q5_K_M',bpw:0.71,note:'甜点上探'},
+  {id:'q4km',name:'Q4_K_M',bpw:0.60,note:'最热默认'},{id:'iq4xs',name:'IQ4_XS',bpw:0.52,note:'再省15%'},
+  {id:'q3',name:'Q3_K_M',bpw:0.48,note:'紧显存'},{id:'q2',name:'Q2_K',bpw:0.35,note:'最后手段'},
+];
+const ARCH_KV={'0.5B':{layers:24,kv:896},'1.5B':{layers:28,kv:1024},'3B':{layers:36,kv:1024},'7B':{layers:32,kv:1024},'8B':{layers:32,kv:1024},'14B':{layers:48,kv:1024},'32B':{layers:64,kv:1024},'70B':{layers:80,kv:1024}};
+let _forge={quant:'q4km',params:'8',ctx:8,playbooks:null};
+async function loadForge(token){
+  let play=null;
+  try{play=await api('/api/train/playbooks')}catch(e){}
+  if(!stillOn('forge',token))return;
+  _forge.playbooks=play;
+  const gpu=(hardwareInfo&&hardwareInfo.gpu_mem)||null;
+  const vramGpu=gpu?Math.round(gpu.mem_total_mb/1024):null;
+  renderModule('forge',`
+    <div class="masthead glass a-init">
+      <div class="kicker">Local LLM Lab</div>
+      <h1>模型工坊</h1>
+      <p class="lede">从「跑一个本地模型」到「炼一个自己的模型」：量化档位 × 显存适配测算、Ollama / llama.cpp 部署命令即拷即用；六大训练框架配方、数据集体检、训练显存预估，一条龙闭环。</p>
+      <div class="statline">
+        <div class="st"><b>${esc((hardwareInfo&&hardwareInfo.gpu)||'GPU')}${vramGpu?' · '+vramGpu+'GB':''}</b><span>本机显卡</span></div>
+        <div class="st"><b data-count="${(play&&play.playbooks||[]).length||6}">0</b><span>训练框架配方</span></div>
+        <div class="st"><b>8</b><span>量化档位</span></div>
+      </div>
+    </div>
+    <div class="subtabs"><button class="subtab active" onclick="genSub(this,'fg-deploy','fg-pane')">本地部署 · 量化适配</button><button class="subtab" onclick="genSub(this,'fg-train','fg-pane')">训练 · 微调工作流</button></div>
+    <div id="fg-deploy" class="fg-pane"></div>
+    <div id="fg-train" class="fg-pane" style="display:none"></div>
+  `,token);
+  if(!stillOn('forge',token))return;
+  renderDeployPane();renderTrainPane();
+  choreo($('mod-forge'));
+}
+function forgeCalc(){
+  const p=parseFloat(_forge.params),a=ARCH_KV[_forge.params]||ARCH_KV['8B'],q=QUANT_LOCAL.find(x=>x.id===_forge.quant)||QUANT_LOCAL[4];
+  const w=p*q.bpw, kv=a.layers*4*a.kv*_forge.ctx*1000/(1024**3);
+  return {w,kv,oh:0.6,total:w+kv+0.6,q};
+}
+function renderDeployPane(){
+  const gpuMem=(hardwareInfo&&hardwareInfo.gpu_mem)?Math.round(hardwareInfo.gpu_mem.mem_total_mb/1024):8;
+  $('fg-deploy').innerHTML=`
+    <div class="split-64">
+      <div>
+        <div class="hsec"><span class="no">01</span><h3>显存适配测算</h3><div class="rule"></div></div>
+        <div class="toolbar" style="margin-bottom:10px">
+          <select id="fgParams" onchange="forgeChange()">${Object.keys(ARCH_KV).map(p=>`<option value="${p}" ${_forge.params===p?'selected':''}>${p} 参数</option>`).join('')}</select>
+          <label class="checkbox">上下文 <input type="range" id="fgCtx" min="1" max="128" value="${_forge.ctx}" style="width:120px;accent-color:var(--accent)" oninput="forgeChange()"><b class="mono" id="fgCtxVal" style="width:52px">${_forge.ctx}k</b></label>
+        </div>
+        <div class="quant-grid" style="margin-bottom:14px">${QUANT_LOCAL.map(q=>`<div class="quant-card ${_forge.quant===q.id?'on':''}" onclick="_forge.quant='${q.id}';renderDeployPane();forgeCalcFetch()"><b>${q.name}</b><span>${q.bpw} B/参 · ${q.note}</span></div>`).join('')}</div>
+        <div id="fgVramBox"></div>
+      </div>
+      <div>
+        <div class="hsec"><span class="no">02</span><h3>本机推荐（GPU ${gpuMem}GB）</h3><div class="rule"></div></div>
+        <div class="ledger" id="fgFits" style="max-height:300px;overflow:auto"></div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:8px">依据 nvidia-smi 显存 × 0.94 安全水位，上下文 ${_forge.ctx}k</div>
+      </div>
+    </div>
+    <div class="hsec"><span class="no">03</span><h3>部署命令（即拷即用）</h3><div class="rule"></div></div>
+    <div id="fgCmds"></div>`;
+  forgeCalcPaint();forgeCalcFetch();
+}
+function forgeChange(){_forge.params=$('fgParams').value;_forge.ctx=parseInt($('fgCtx').value)||8;$('fgCtxVal').textContent=_forge.ctx+'k';forgeCalcPaint();forgeCalcFetch()}
+function forgeCalcPaint(){
+  const r=forgeCalc(),gpuMem=(hardwareInfo&&hardwareInfo.gpu_mem)?Math.round(hardwareInfo.gpu_mem.mem_total_mb/1024):8;
+  const pct=Math.min(100,Math.round(r.total/(gpuMem||8)*100));
+  const fit=r.total<=gpuMem*0.94;
+  $('fgVramBox').innerHTML=`<div class="card glass-light" style="padding:14px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-family:var(--font-serif);font-size:22px">${r.total.toFixed(1)} GB</b><span class="badge ${fit?'badge-success':'badge-danger'}">${fit?'可运行':'超出 '+gpuMem+'GB 显存'}</span></div>
+    <div class="metric-bar" style="margin:8px 0"><div class="metric-bar-fill" style="width:${pct}%;background:${fit?'var(--accent)':'var(--danger)'}"></div></div>
+    <div style="display:flex;gap:18px;font-size:11.5px;color:var(--text-2)">
+      <span>权重 <b class="mono">${r.w.toFixed(1)}</b> GB</span><span>KV 缓存 <b class="mono">${r.kv.toFixed(2)}</b> GB</span><span>开销 <b class="mono">0.6</b> GB</span>
+    </div>
+    <div style="font-size:11px;color:var(--text-3);margin-top:6px">${esc(r.q.note)} · KV 按 GQA fp16 估算，开 KV 量化可再省约 50%</div>
+  </div>`;
+}
+async function forgeCalcFetch(){
+  const rec=await api('/api/agent/vram/recommend?vram='+((hardwareInfo&&hardwareInfo.gpu_mem)?Math.round(hardwareInfo.gpu_mem.mem_total_mb/1024):8)+'&ctx='+_forge.ctx);
+  const box=$('fgFits');
+  if(box&&rec&&rec.fits)box.innerHTML='<div class="ledger-head">推荐组合（大到小）</div>'+rec.fits.map(f=>`<div class="ledger-row" style="grid-template-columns:64px 90px 1fr auto"><strong>${esc(f.model)}</strong><span class="mono" style="font-size:11px">${esc(f.quant)}</span><span style="font-size:11px;color:var(--text-3)">${esc(f.note)}</span><b class="mono" style="font-size:11.5px">${f.total_gb}GB</b></div>`).join('');
+  const dep=await api('/api/agent/deploy?params_b='+_forge.params+'&quant='+_forge.quant+'&ctx='+_forge.ctx);
+  const cmdBox=$('fgCmds');
+  if(cmdBox&&dep){
+    window._deployTxt='ollama: '+dep.ollama+'\n\nllama.cpp:\n'+dep.llamacpp+'\n\n环境变量:\n'+dep.env;
+    cmdBox.innerHTML=`<div class="code-block"><div class="code-head"><b>deploy.sh</b><button class="btn btn-sm" onclick="copyPath(window._deployTxt)">${icon('i-copy')} 复制全部</button></div><pre># Ollama（最省心）
+${esc(dep.ollama)}
+
+# llama.cpp（完全掌控）
+${esc(dep.llamacpp)}
+
+# 环境变量（省显存三件套）
+${esc(dep.env)}
+
+# 接入 Avenger：AI 工坊 → 自定义 → http://127.0.0.1:8080/v1/chat/completions
+# ${esc(dep.openai_compat||'')}</pre></div>`;
+  }
+}
+function renderTrainPane(){
+  const play=_forge.playbooks||{playbooks:[],pipeline:[]};
+  $('fg-train').innerHTML=`
+    <div class="hsec"><span class="no">01</span><h3>最优工作流（六步闭环）</h3><div class="rule"></div></div>
+    <div class="pipeline glass-light" style="border-radius:12px">${(play.pipeline||[]).map(s=>`<div class="pipe-step"><div class="pn">STEP ${s.step}</div><b>${esc(s.name)}</b><span>${esc(s.detail)}</span></div>`).join('')}</div>
+    <div class="hsec"><span class="no">02</span><h3>框架选型（${(play.playbooks||[]).length} 套配方）</h3><div class="rule"></div><span style="font-size:11px;color:var(--text-3)">min_vram = 建议最低显存 GB</span></div>
+    <div class="grid grid-3">${(play.playbooks||[]).map(b=>`<div class="card glass-light" style="padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-family:var(--font-serif);font-size:15px">${esc(b.name)}</b><span class="badge badge-accent">${esc(b.tag)}</span></div>
+      <p style="font-size:12px;color:var(--text-2);line-height:1.6;margin:8px 0">${esc(b.when)}</p>
+      <div style="font-size:11px;color:var(--text-3);line-height:1.6"><span style="color:var(--success)">✓ ${esc(b.pros)}</span><br><span style="color:var(--text-4)">✗ ${esc(b.cons)}</span></div>
+      <div class="toolbar" style="margin-top:10px"><span class="badge badge-info">≥${b.min_vram}GB</span><button class="btn btn-sm btn-primary" style="margin-left:auto" onclick="trainScriptModal('${b.id}')">生成配方</button></div>
+    </div>`).join('')}</div>
+    <div class="split-64" style="margin-top:20px">
+      <div>
+        <div class="hsec"><span class="no">03</span><h3>数据集体检</h3></div>
+        <textarea id="dsText" style="width:100%;height:150px;font-family:var(--font-mono);font-size:11.5px" placeholder='粘贴 JSONL 训练集（每行一条）…&#10;{"instruction":"...","output":"..."}  (alpaca)&#10;{"messages":[...]}  (chat)&#10;{"conversations":[...]}  (sharegpt)'></textarea>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="dsValidate()">${icon('i-check')} 校验与统计</button>
+        <div id="dsOut" style="margin-top:12px"></div>
+      </div>
+      <div>
+        <div class="hsec"><span class="no">04</span><h3>训练显存预估</h3></div>
+        <div class="toolbar" style="flex-wrap:wrap">
+          <select id="tvParams">${Object.keys(ARCH_KV).map(p=>`<option value="${p}">${p}</option>`).join('')}</select>
+          <select id="tvMethod"><option value="qlora">QLoRA</option><option value="lora">LoRA</option><option value="full">全参微调</option></select>
+          <label class="checkbox">ctx <input type="number" id="tvCtx" value="2" min="1" max="32" style="width:64px">k</label>
+          <label class="checkbox">batch <input type="number" id="tvBatch" value="2" min="1" max="64" style="width:64px"></label>
+          <button class="btn btn-sm" onclick="trainVramCalc()">估算</button>
+        </div>
+        <div id="tvOut" style="margin-top:12px"></div>
+        <div style="font-size:11px;color:var(--text-3);margin-top:6px">估算为经验公式（权重 + 优化器状态 + 激活），实际以框架日志为准。</div>
+      </div>
+    </div>`;
+}
+function trainScriptModal(fw){
+  const book=((_forge.playbooks||{}).playbooks||[]).find(b=>b.id===fw)||{};
+  showModal(`<div class="modal-title">生成训练配方 · ${esc(book.name||fw)}</div><div class="modal-body">
+    <div class="toolbar" style="margin-bottom:10px"><input id="tsModel" value="Qwen/Qwen2.5-7B-Instruct" style="flex:1" title="基座模型"><input id="tsData" value="train.jsonl" style="width:140px" title="数据文件"></div>
+    <div class="toolbar" style="margin-bottom:10px"><label class="checkbox">epochs <input type="number" id="tsEpochs" value="3" min="1" max="20" style="width:64px"></label><label class="checkbox">lr <input type="text" id="tsLr" value="${fw==='llamafactory'?'5e-5':'2e-4'}" style="width:90px" class="mono"></label></div>
+    <div id="tsOut" class="code-block"><div class="code-head"><b>配方</b><button class="btn btn-sm" id="tsCopy" style="display:none" onclick="copyPath(window._trainScript)">${icon('i-copy')}</button></div><pre id="tsPre" style="max-height:300px">点击「生成」</pre></div>
+  </div><div class="modal-footer"><button class="btn" onclick="closeModal()">关闭</button><button class="btn btn-primary" onclick="doTrainScript('${fw}')">生成</button></div>`);
+}
+async function doTrainScript(fw){
+  const d=await api('/api/train/script',{method:'POST',body:{framework:fw,model:$('tsModel').value.trim(),dataset:$('tsData').value.trim(),epochs:parseInt($('tsEpochs').value)||3,lr:$('tsLr').value.trim()}});
+  if(d?.ok){window._trainScript=d.script;$('tsPre').textContent=d.script;$('tsCopy').style.display='inline-flex';$('tsCopy').insertAdjacentHTML('beforeend',' 复制');
+    const dl=document.createElement('button');dl.className='btn btn-sm btn-primary';dl.innerHTML=icon('i-save')+' 下载';dl.onclick=()=>downloadText(d.filename,window._trainScript);$('tsCopy').parentElement.appendChild(dl);}
+  else toast(d?.error||'生成失败','error');
+}
+async function dsValidate(){
+  const text=$('dsText').value;
+  if(!text.trim()){toast('先粘贴数据集','error');return}
+  $('dsOut').innerHTML='<div class="loading-state"><div class="spinner"></div>分析中…</div>';
+  const d=await api('/api/train/validate',{method:'POST',body:{text}});
+  if(!d?.ok){$('dsOut').innerHTML=`<div class="empty-state">${esc(d?.error||'失败')}</div>`;return}
+  $('dsOut').innerHTML=`<div class="statline" style="margin:0 0 10px;border-top:0;padding-top:0">
+      <div class="st"><b data-count="${d.valid}">0</b><span>有效样本</span></div>
+      <div class="st"><b data-count="${d.est_tokens}">0</b><span>估算 token</span></div>
+      <div class="st"><b class="mono" style="font-size:18px">${d.avg_chars}</b><span>平均字符</span></div>
+    </div>
+    ${(d.warnings||[]).length?d.warnings.map(w=>`<div class="issue-card mid" style="margin-bottom:6px;padding:9px 12px">${icon('i-alert')} ${esc(w)}</div>`).join(''):`<div class="badge badge-success">${icon('i-check')} 未发现明显问题</div>`}
+    <div style="font-size:11.5px;color:var(--text-3);margin-top:8px">结构识别: alpaca×${d.schemas.alpaca} · chat×${d.schemas.messages} · sharegpt×${d.schemas.sharegpt} · 未知×${d.schemas.unknown} · ${esc(d.splits)}</div>`;
+  choreo($('dsOut'));
+}
+function trainVramCalc(){
+  const p=parseFloat($('tvParams').value)||7, method=$('tvMethod').value, ctx=parseInt($('tvCtx').value)||2, batch=parseInt($('tvBatch').value)||2;
+  let total,note;
+  if(method==='full'){total=p*8+0.35*ctx*batch;note='全参微调：7B 需 ≥60GB（DeepSpeed ZeRO-3/FSDP 多卡）'}
+  else if(method==='lora'){total=p*2.05+0.10*ctx*batch+1.0;note='LoRA：基座 bf16 + 适配器，7B≈16-18GB'}
+  else{total=p*0.62+0.06*ctx*batch+1.5;note='QLoRA：基座 4bit，7B≈5-6GB，消费级单卡首选'}
+  const gpu=(hardwareInfo&&hardwareInfo.gpu_mem)?Math.round(hardwareInfo.gpu_mem.mem_total_mb/1024):8;
+  $('tvOut').innerHTML=`<div class="card glass-light" style="padding:14px"><div style="display:flex;justify-content:space-between"><b style="font-family:var(--font-serif);font-size:22px">${total.toFixed(1)} GB</b><span class="badge ${total<=gpu*0.94?'badge-success':'badge-danger'}">${total<=gpu*0.94?'本机可训':'超出 GPU '+gpu+'GB'}</span></div><div style="font-size:11.5px;color:var(--text-3);margin-top:6px">${esc(note)}</div></div>`;
+}
+
 let _memoQ='',_memoTag='all',_memoPreview=false;
 function memoTagList(){
   const set=new Set();
@@ -3420,7 +4026,7 @@ function loadSettings(token){
           <button class="btn btn-sm" onclick="showOpLogs()">打开操作日志</button>
           <button class="btn btn-sm btn-danger" onclick="confirmDanger('清空本地偏好','将清除主题、引导、健康统计等 localStorage 数据。','CLEAR',()=>{Object.keys(localStorage).filter(k=>k.startsWith('avenger3_')).forEach(k=>localStorage.removeItem(k));toast('已清空','success')})">清空偏好</button>
         </div>
-        <div class="mono" style="font-size:11px;color:var(--text-3)">Avenger V4.0 · 会话令牌随服务启动轮换。关掉浏览器后由「Avenger 托管」小窗保活，关掉小窗才停止服务。AI Key 存在 avenger_secrets.json；宠物与皮肤同步到托管小窗（重启后生效）。MySQL / PostgreSQL 在零 pip 依赖下只做端口探测。</div>
+        <div class="mono" style="font-size:11px;color:var(--text-3)">Avenger V5.0 · 会话令牌随服务启动轮换。关掉浏览器后由「Avenger 托管」小窗保活，关掉小窗才停止服务。AI Key 存在 avenger_secrets.json；宠物与皮肤同步到托管小窗（重启后生效）。MySQL / PostgreSQL 在零 pip 依赖下只做端口探测。</div>
       </div></div>`,token);
 }
 function exportPrefs(){

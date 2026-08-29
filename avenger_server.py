@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 ============================================================
-  Avenger V4.0 全栈开发者全景工作台 后端服务
+  Avenger V5.0 全栈开发者全景工作台 后端服务
   纯 Python 标准库实现, 零第三方依赖
   兼容: Windows 10/11, Python 3.8+
 ============================================================
@@ -38,6 +38,11 @@ try:
     import avenger_studio as studio
 except ImportError:
     studio = None
+
+try:
+    import avenger_agent as agentmod
+except ImportError:
+    agentmod = None
 
 # Windows 专属模块
 try:
@@ -2312,6 +2317,74 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             self._send_json({"ok": True})
             return
 
+        # ===== V5.0 Agent 生态 =====
+        if path == "/api/agent/skills":
+            self._send_json(agentmod.skills_list() if agentmod else {"error": "agent 模块缺失"}, 200 if agentmod else 500)
+            return
+
+        if path == "/api/agent/mcp":
+            if agentmod:
+                self._send_json({"registry": agentmod.MCP_REGISTRY, "local": agentmod.mcp_local_configs(), "server_script": str(BASE_DIR / "avenger_mcp_server.py")})
+            else:
+                self._send_json({"error": "agent 模块缺失"}, 500)
+            return
+
+        if path == "/api/agent/memory":
+            if agentmod:
+                self._send_json({"items": agentmod.mem_list(BASE_DIR, q=qs.get("q", [""])[0], kind=qs.get("kind", [""])[0])})
+            else:
+                self._send_json({"error": "agent 模块缺失"}, 500)
+            return
+
+        if path == "/api/agent/context/scan":
+            if agentmod:
+                self._send_json(agentmod.context_scan(qs.get("path", [""])[0]))
+            else:
+                self._send_json({"error": "agent 模块缺失"}, 500)
+            return
+
+        if path == "/api/agent/vram":
+            if agentmod:
+                try:
+                    params_b = float(qs.get("params_b", ["7"])[0])
+                    quant = qs.get("quant", ["q4km"])[0]
+                    ctx_k = min(int(qs.get("ctx", ["8"])[0]), 512)
+                    self._send_json(agentmod.vram_calc(params_b, quant, ctx_k))
+                except (TypeError, ValueError):
+                    self._send_json({"error": "参数无效"}, 400)
+            else:
+                self._send_json({"error": "agent 模块缺失"}, 500)
+            return
+
+        if path == "/api/agent/vram/recommend":
+            if agentmod:
+                try:
+                    vram = min(float(qs.get("vram", ["8"])[0]), 512)
+                    ctx_k = min(int(qs.get("ctx", ["8"])[0]), 512)
+                    self._send_json(agentmod.vram_recommend(vram, ctx_k))
+                except (TypeError, ValueError):
+                    self._send_json({"error": "参数无效"}, 400)
+            else:
+                self._send_json({"error": "agent 模块缺失"}, 500)
+            return
+
+        if path == "/api/agent/deploy":
+            if agentmod:
+                try:
+                    params_b = float(qs.get("params_b", ["7"])[0])
+                    quant = qs.get("quant", ["q4km"])[0]
+                    ctx_k = min(int(qs.get("ctx", ["8"])[0]), 512)
+                    self._send_json(agentmod.deploy_commands(params_b, quant, ctx_k))
+                except (TypeError, ValueError):
+                    self._send_json({"error": "参数无效"}, 400)
+            else:
+                self._send_json({"error": "agent 模块缺失"}, 500)
+            return
+
+        if path == "/api/train/playbooks":
+            self._send_json(agentmod.train_playbooks() if agentmod else {"error": "agent 模块缺失"}, 200 if agentmod else 500)
+            return
+
         if path == "/api/overview":
             self._send_json(self._api_overview())
             return
@@ -2619,6 +2692,19 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             "/api/ai/test": self._handle_ai_test,
             "/api/kata/run": self._handle_kata_run,
             "/api/ui-prefs": self._handle_ui_prefs,
+            # V5.0 Agent 生态
+            "/api/agent/skills/install": self._handle_skill_install,
+            "/api/agent/skills/uninstall": self._handle_skill_uninstall,
+            "/api/agent/skills/create": self._handle_skill_create,
+            "/api/agent/mcp/snippet": self._handle_mcp_snippet,
+            "/api/agent/memory/add": self._handle_mem_add,
+            "/api/agent/memory/delete": self._handle_mem_delete,
+            "/api/agent/memory/export": self._handle_mem_export,
+            "/api/agent/context/pack": self._handle_context_pack,
+            "/api/agent/harness": self._handle_harness,
+            "/api/train/validate": self._handle_train_validate,
+            "/api/train/script": self._handle_train_script,
+            "/api/agent/ide": self._handle_ide_generate,
         }
         handler = routes.get(path)
         if handler:
@@ -2732,7 +2818,7 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
                         if iss.get("explanation"):
                             lines.append(f"- **原理**: {iss['explanation']}")
                         lines.append("")
-        lines.append("---\n*报告由 Avenger V4.0 全景工作台自动生成*\n")
+        lines.append("---\n*报告由 Avenger V5.0 全景工作台自动生成*\n")
         return "\n".join(lines)
 
     def _handle_fix(self, body):
@@ -3159,6 +3245,98 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
         save_ui_prefs(data)
         self._send_json({"ok": True, "prefs": data})
 
+    # ===== V5.0 Agent 生态处理器 =====
+    def _agent_guard(self):
+        if not agentmod:
+            self._send_json({"ok": False, "error": "agent 模块缺失"}, 500)
+            return False
+        return True
+
+    def _handle_skill_install(self, body):
+        if not self._agent_guard():
+            return
+        self._send_json(agentmod.skill_install((body or {}).get("id") or ""))
+
+    def _handle_skill_uninstall(self, body):
+        if not self._agent_guard():
+            return
+        sid = str((body or {}).get("id") or "")
+        if not re.match(r"^[a-z0-9-]{1,64}$", sid):
+            self._send_json({"ok": False, "error": "技能名不合法"}, 400)
+            return
+        self._send_json(agentmod.skill_uninstall(sid))
+
+    def _handle_skill_create(self, body):
+        if not self._agent_guard():
+            return
+        b = body or {}
+        self._send_json(agentmod.skill_create(b.get("name") or "", b.get("description") or "", (b.get("body") or "")[:60000]))
+
+    def _handle_mcp_snippet(self, body):
+        if not self._agent_guard():
+            return
+        b = body or {}
+        client = b.get("client") or "claude-desktop"
+        self._send_json(agentmod.mcp_snippet(client, b.get("server_id") or "", b.get("extra") or ""))
+
+    def _handle_mem_add(self, body):
+        if not self._agent_guard():
+            return
+        self._send_json(agentmod.mem_add(BASE_DIR, body or {}))
+
+    def _handle_mem_delete(self, body):
+        if not self._agent_guard():
+            return
+        self._send_json(agentmod.mem_delete(BASE_DIR, str((body or {}).get("id") or "")))
+
+    def _handle_mem_export(self, body):
+        if not self._agent_guard():
+            return
+        self._send_json(agentmod.mem_export(BASE_DIR))
+
+    def _handle_context_pack(self, body):
+        if not self._agent_guard():
+            return
+        b = body or {}
+        target = str(b.get("path") or "")
+        if path_is_blocked(target) or not os.path.isdir(target):
+            self._send_json({"ok": False, "error": "目录不可用"}, 400)
+            return
+        if b.get("save"):
+            self._send_json(agentmod.context_pack_save(target))
+        else:
+            self._send_json(agentmod.context_pack(target))
+
+    def _handle_harness(self, body):
+        if not self._agent_guard():
+            return
+        self._send_json(agentmod.harness_generate(body or {}))
+
+    def _handle_train_validate(self, body):
+        if not self._agent_guard():
+            return
+        self._send_json(agentmod.dataset_validate((body or {}).get("text") or ""))
+
+    def _handle_train_script(self, body):
+        if not self._agent_guard():
+            return
+        self._send_json(agentmod.train_script_generate(body or {}))
+
+    def _handle_ide_generate(self, body):
+        if not self._agent_guard():
+            return
+        b = body or {}
+        r = agentmod.ide_generate(b)
+        if r.get("ok") and b.get("path") and b.get("save"):
+            p = Path(b["path"]) / r["filename"]
+            if path_is_blocked(str(p.parent)):
+                self._send_json({"ok": False, "error": "拒绝写入敏感目录"}, 400)
+                return
+            p.write_text(r["content"], encoding="utf-8")
+            log_op("IDE 配置写入: %s" % p)
+            r["saved"] = str(p)
+        self._send_json(r)
+
     def _handle_compare(self, body):
         """多环境对比 (支持2-3个)"""
         env_ids = body.get("envs", [])
@@ -3479,7 +3657,7 @@ def main():
     _scan_status["message"] = "启动扫描..."
     _scan_status["progress"] = 1
     print("=" * 56)
-    print("   Avenger V4.0 - 全栈开发者全景工作台")
+    print("   Avenger V5.0 - 全栈开发者全景工作台")
     print("   服务地址: http://%s:%s" % (HOST, PORT))
     print("   启动时间: %s" % datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     print("   关掉浏览器后由托管小窗保活；关掉小窗即停止服务")
