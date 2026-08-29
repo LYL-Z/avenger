@@ -60,7 +60,7 @@ except ImportError:
 # ============================================================
 HOST = "127.0.0.1"
 PORT = 8765
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(os.environ.get("AVENGER_HOME") or Path(__file__).resolve().parent)
 LOG_FILE = BASE_DIR / "avenger_operations.log"
 BACKUP_DIR = BASE_DIR / "backups"
 BACKUP_DIR.mkdir(exist_ok=True)

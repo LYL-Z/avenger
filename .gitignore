@@ -27,3 +27,8 @@ Thumbs.db
 desktop.ini
 .idea/
 .vscode/
+
+# ==== 打包产物 ====
+dist/
+build/
+*.spec.bak
