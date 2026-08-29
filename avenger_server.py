@@ -63,6 +63,8 @@ TOKEN_FILE = BASE_DIR / "avenger.token"
 SESSION_TOKEN = secrets.token_urlsafe(32)
 MAX_BODY = 10 * 1024 * 1024
 WATCHDOG_SEC = 90
+_LAN_MODE = False
+_PAIR = {"code": "", "ts": 0}
 CACHE_META = BASE_DIR / "avenger_cache_meta.json"
 UI_PREFS_FILE = BASE_DIR / "avenger_ui.json"
 
@@ -2198,7 +2200,7 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
         )
 
     def _guard(self, mutating=False):
-        if not is_loopback_host(self.headers.get("Host", "")):
+        if not _LAN_MODE and not is_loopback_host(self.headers.get("Host", "")):
             self._send_json({"error": "拒绝非本机 Host（防 DNS rebinding）"}, 403)
             return False
         site = (self.headers.get("Sec-Fetch-Site") or "").lower()
@@ -2418,6 +2420,27 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
 
         if path == "/api/train/datasets":
             self._send_json({"items": agentmod.ds_list(BASE_DIR)} if agentmod else {"error": "agent 模块缺失"}, 200 if agentmod else 500)
+            return
+
+        if path == "/api/lan/info":
+            self._send_json({"lan": _LAN_MODE, "ip": _lan_ip(), "port": PORT,
+                             "url": "http://%s:%s/" % (_lan_ip(), PORT) if _LAN_MODE else ""})
+            return
+
+        if path == "/api/pair/code":
+            code = str(secrets.randbelow(1000000)).zfill(6)
+            _PAIR["code"] = code
+            _PAIR["ts"] = time.time()
+            log_op("生成手机配对码")
+            self._send_json({"ok": True, "code": code, "ttl": 300,
+                             "url": "http://%s:%s/" % (_lan_ip(), PORT) if _LAN_MODE else ""})
+            return
+
+        if path == "/api/agent/memory/related":
+            if agentmod:
+                self._send_json(agentmod.mem_related(BASE_DIR, qs.get("id", [""])[0]))
+            else:
+                self._send_json({"error": "agent 模块缺失"}, 500)
             return
 
         if path == "/api/train/playbooks":
@@ -2685,6 +2708,18 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
 
     # ---------- POST ----------
     def do_POST(self):
+        parsed0 = urlparse(self.path)
+        if parsed0.path == "/api/pair/claim":
+            # 手机配对：凭 6 位配对码换取会话令牌（码 5 分钟有效）
+            body = self._read_body()
+            code = str((body or {}).get("code") or "").strip()
+            ok = bool(code) and code == _PAIR.get("code") and (time.time() - float(_PAIR.get("ts") or 0)) < 300
+            if ok:
+                log_op("手机配对成功")
+                self._send_json({"ok": True, "token": SESSION_TOKEN})
+            else:
+                self._send_json({"ok": False, "error": "配对码无效或已过期（5 分钟有效）"}, 403)
+            return
         if not self._guard(mutating=True):
             return
         parsed = urlparse(self.path)
@@ -2745,6 +2780,13 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             "/api/train/datasets/save": self._handle_ds_save,
             "/api/train/datasets/delete": self._handle_ds_delete,
             "/api/usage/log": self._handle_usage_log,
+            "/api/agent/skills/bundle": self._handle_skill_bundle,
+            "/api/agent/memory/clear": self._handle_mem_clear,
+            "/api/agent/deploy/script": self._handle_deploy_script,
+            "/api/train/advise": self._handle_train_advise,
+            "/api/train/clean": self._handle_train_clean,
+            "/api/agent/ide/extension": self._handle_ide_extension,
+            "/api/lan/enable": self._handle_lan_enable,
             "/api/train/script": self._handle_train_script,
             "/api/agent/ide": self._handle_ide_generate,
         }
@@ -3401,6 +3443,59 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
         self._send_json(agentmod.usage_add(BASE_DIR, b.get("provider"), b.get("model"),
                                            b.get("prompt_chars"), b.get("completion_tokens")))
 
+    def _handle_skill_bundle(self, body):
+        if not self._agent_guard():
+            return
+        self._send_json(agentmod.skill_bundle([str(x) for x in ((body or {}).get("ids") or [])][:12]))
+
+    def _handle_mem_clear(self, body):
+        if not self._agent_guard():
+            return
+        b = body or {}
+        r = agentmod.mem_clear(BASE_DIR, str(b.get("kind") or ""), int(b.get("before_days") or 0))
+        if r.get("ok"):
+            log_op("清理记忆 %d 条 (kind=%s days=%s)" % (r.get("deleted", 0), b.get("kind") or "-", b.get("before_days") or 0))
+        self._send_json(r)
+
+    def _handle_deploy_script(self, body):
+        if not self._agent_guard():
+            return
+        name = str((body or {}).get("ollama") or "").strip()
+        if not re.match(r"^[A-Za-z0-9._:\-]{1,80}$", name):
+            self._send_json({"ok": False, "error": "模型名不合法"}, 400)
+            return
+        self._send_json(agentmod.deploy_script(name))
+
+    def _handle_train_advise(self, body):
+        if not self._agent_guard():
+            return
+        b = body or {}
+        try:
+            self._send_json(agentmod.train_advise(
+                int(b.get("samples") or 0), int(b.get("epochs") or 3),
+                float(b.get("params") or 7), str(b.get("method") or "lora"),
+                float(b.get("gpu_tflops") or 180)))
+        except (TypeError, ValueError):
+            self._send_json({"ok": False, "error": "参数无效"}, 400)
+
+    def _handle_train_clean(self, body):
+        if not self._agent_guard():
+            return
+        b = body or {}
+        self._send_json(agentmod.dataset_clean(str(b.get("text") or ""), int(b.get("max_chars") or 12000)))
+
+    def _handle_ide_extension(self, body):
+        if not self._agent_guard():
+            return
+        name = re.sub(r"[^a-zA-Z0-9._-]+", "-", str((body or {}).get("project") or "my-project"))[:40]
+        self._send_json(agentmod.ide_extension(name or "my-project"))
+
+    def _handle_lan_enable(self, body):
+        on = bool((body or {}).get("on"))
+        _restart_http(on)
+        self._send_json({"ok": True, "lan": _LAN_MODE, "ip": _lan_ip(), "port": PORT,
+                         "url": ("http://%s:%s/" % (_lan_ip(), PORT)) if _LAN_MODE else ""})
+
     def _handle_ide_generate(self, body):
         if not self._agent_guard():
             return
@@ -3682,6 +3777,45 @@ def find_free_port(preferred=PORT):
         except OSError:
             continue
     return preferred
+
+
+def _lan_ip():
+    """取本机局域网 IP（不发包，仅路由探测；失败回落 hostname 解析）。"""
+    import socket as _s
+    try:
+        sk = _s.socket(_s.AF_INET, _s.SOCK_DGRAM)
+        try:
+            sk.connect(("10.255.255.255", 1))
+            ip = sk.getsockname()[0]
+        finally:
+            sk.close()
+        if ip and not ip.startswith("127."):
+            return ip
+    except Exception:
+        pass
+    try:
+        return _s.gethostbyname(_s.gethostname())
+    except Exception:
+        return "127.0.0.1"
+
+
+def _restart_http(bind_all):
+    """切换监听地址：LAN 模式绑定 0.0.0.0（手机可连），否则仅 127.0.0.1。"""
+    global _http_server, _LAN_MODE
+    try:
+        if _http_server:
+            _http_server.shutdown()
+            _http_server.server_close()
+    except Exception:
+        pass
+    time.sleep(0.3)
+    addr = ("0.0.0.0", PORT) if bind_all else (HOST, PORT)
+    srv = http.server.ThreadingHTTPServer(addr, AvengerHandler)
+    srv.daemon_threads = True
+    _http_server = srv
+    _LAN_MODE = bool(bind_all)
+    threading.Thread(target=srv.serve_forever, daemon=True, name="http").start()
+    log_op("监听切换: %s:%s (LAN=%s)" % (addr[0], PORT, bind_all))
 
 
 def start_watchdog(server):

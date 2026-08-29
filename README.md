@@ -73,7 +73,19 @@
 | 🖥️ AI-IDE | CLAUDE.md / AGENTS.md / .cursorrules / copilot-instructions 生成器 |
 | 🎨 UI/UX | 引入 Anime.js 编排（弹簧入场+数字滚动，离线优雅降级）；编辑部式 masthead、发丝线台账行、非对称栅格，摆脱均质卡片布局 |
 
-### v5.1 — 模型库 · 使用统计 · 动效引擎（当前版本）
+### v5.2 — 手机直连 · Agent 生态补全 · 训练闭环（当前版本）
+| 方向 | 内容 |
+|------|------|
+| 📱 手机直连 | LAN 模式热切换（0.0.0.0）+ 6 位配对码换令牌协议；手机浏览器获得全部 19 模块操控权；云端模式支持 Tailscale 组网 |
+| 🧩 技能组合包 | 多选技能合并为单一 skill-pack.md（含冲突消解规则） |
+| 🕸️ Harness v2 | Python/Node 双语言；指数退避重试×3；token 预算；MCP Server 补全 resources/prompts 协议；配置体检器 |
+| 🧠 记忆治理 | 关联记忆推荐（标签+关键词重合度）；按类目/天数批量清理 |
+| 🚀 一键部署 | 模型卡直出部署 BAT（检测→winget 装 Ollama→pull→run） |
+| 🖥️ AI-IDE | VS Code/Cursor 扩展脚手架生成（解释/优化/审查三命令，vsce 即打包） |
+| 🏋️ 训练闭环 | 数据清洗器 + 耗时预估公式 + 过拟合风险顾问（早停判据）+ 数据集登记库 |
+| ✨ UI | 开机动画；Anime.js v4 适配器；≤720px 多分辨率适配修复 |
+
+### v5.1 — 模型库 · 使用统计 · 动效引擎
 | 方向 | 内容 |
 |------|------|
 | 📼 模型库 | 13 个热门开源模型家族 × 22 个量化变体（Qwen3 / DeepSeek-R1 / Llama / GLM / Phi-4 / Gemma3…），基于 nvidia-smi 实测显存给出 **显存充裕 / 可内存卸载 / 显存不足** 三态判定；Ollama 运行时自动识别已下载模型；下载/启动命令一键复制；GPU/内存实时仪表 |
@@ -270,4 +282,4 @@ python avenger_server.py --no-hud       # 不启动托管小窗（服务随终�
 
 ## 📄 许可证
 
-[MIT License](LICENSE) —— 可自由使用、修改、分发，请保留版权声明。
+[MIT License](LICENSE) · 升级细则见 [UPGRADE_V5.2.md](UPGRADE_V5.2.md) —— 可自由使用、修改、分发，请保留版权声明。

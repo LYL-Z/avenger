@@ -1255,3 +1255,319 @@ def ds_delete(base_dir, did):
         conn.commit()
         conn.close()
     return {"ok": True}
+
+
+# ============================================================
+# 12. V5.2 技能组合包 / 记忆关联与清理 / Harness v2 / 一键部署 / 训练顾问 / IDE 扩展
+# ============================================================
+
+def skill_bundle(ids):
+    """把多个技能合并为一个技能包 SKILL.md（组合调用场景）。"""
+    parts = ["---\nname: skill-pack\ndescription: Avenger 组合技能包（%d 个技能）\n---\n" % len(ids)]
+    found = 0
+    for sid in ids:
+        s = next((x for x in SKILLS_REGISTRY if x["id"] == sid), None)
+        if not s:
+            continue
+        found += 1
+        parts.append("\n\n# ===== 技能：%s（%s）=====\n\n%s" % (s["name"], s["id"], s["body"].strip()))
+    if not found:
+        return {"ok": False, "error": "没有有效技能"}
+    parts.append("\n\n## 组合调用规则\n按用户任务的领域自动套用上方对应技能的检查清单；多技能冲突时，以更具体的技能为准。")
+    return {"ok": True, "count": found, "markdown": "\n".join(parts), "filename": "skill-pack.md"}
+
+
+def mem_clear(base_dir, kind="", before_days=0):
+    """批量清理记忆：按类目 和/或 清理 N 天前的旧记忆。返回删除条数。"""
+    q = "DELETE FROM agent_memory WHERE 1=1"
+    args = []
+    if kind:
+        q += " AND kind=?"
+        args.append(kind)
+    if before_days and int(before_days) > 0:
+        cut = (datetime.now() - __import__("datetime").timedelta(days=int(before_days))).strftime("%Y-%m-%d %H:%M:%S")
+        q += " AND created < ?"
+        args.append(cut)
+    if len(args) == 0:
+        return {"ok": False, "error": "请指定类目或天数，避免全量误删"}
+    with _MEM_LOCK:
+        conn = _mem_db(base_dir)
+        cur = conn.execute(q, args)
+        n = cur.rowcount
+        conn.commit()
+        conn.close()
+    return {"ok": True, "deleted": n}
+
+
+def mem_related(base_dir, mid, top=6):
+    """基于标签/类目/关键词重合度的关联记忆推荐（提升上下文匹配精准度）。"""
+    items = mem_list(base_dir)
+    me = next((x for x in items if x["id"] == mid), None)
+    if not me:
+        return {"ok": False, "error": "记忆不存在"}
+    import re as _re
+    def toks(x):
+        return set(_re.findall(r"[\w\u4e00-\u9fff]+", (x or "").lower()))
+    my_tags = set(t.strip().lower() for t in me["tags"].replace("，", ",").split(",") if t.strip())
+    my_words = toks(me["content"]) - my_tags
+    scored = []
+    for x in items:
+        if x["id"] == mid:
+            continue
+        tags = set(t.strip().lower() for t in x["tags"].replace("，", ",").split(",") if t.strip())
+        score = 3 * len(my_tags & tags) + len(my_words & toks(x["content"]))
+        if x["kind"] == me["kind"]:
+            score += 1
+        if score > 0:
+            scored.append((score, x))
+    scored.sort(key=lambda t: -t[0])
+    return {"ok": True, "items": [dict(x, score=s) for s, x in scored[:top]]}
+
+
+_HARNESS_NODE_TEMPLATE = """#!/usr/bin/env node
+// Avenger Harness (Node.js) — 单文件 Coding Agent（OpenAI 兼容 / 零 npm 依赖）
+// 由 Avenger V5.2 生成于 __DATE__
+const BASE_URL = process.env.AGENT_BASE_URL || "__BASE_URL__";
+const API_KEY = process.env.AGENT_API_KEY || "__API_KEY__";
+const MODEL = process.env.AGENT_MODEL || "__MODEL__";
+const MAX_STEPS = __MAX_STEPS__;
+const fs = require("fs"), path = require("path");
+const WORKDIR = path.resolve(process.env.AGENT_WORKDIR || ".");
+function safePath(p){const f=path.resolve(WORKDIR,p);if(!f.startsWith(WORKDIR))throw new Error("越界路径 "+p);return f}
+const TOOLS = __TOOLS_LIST__;
+const TOOL_SCHEMAS = __TOOL_SCHEMAS__;
+async function callLLM(messages,attempt=0){
+  try{
+    const r=await fetch(BASE_URL,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+API_KEY},
+      body:JSON.stringify({model:MODEL,messages,tools:TOOL_SCHEMAS,temperature:0.3})});
+    if(!r.ok)throw new Error("HTTP "+r.status+" "+(await r.text()).slice(0,200));
+    return await r.json();
+  }catch(e){
+    if(attempt>=3)throw e;
+    const wait=800*Math.pow(2,attempt);
+    console.error("[重试 "+(attempt+1)+"] "+e.message+" — "+wait+"ms 后重试");
+    await new Promise(res=>setTimeout(res,wait));
+    return callLLM(messages,attempt+1);
+  }
+}
+const IMPL={
+  read_file:a=>fs.readFileSync(safePath(a.path),"utf8").slice(0,20000),
+  list_dir:a=>fs.readdirSync(safePath(a.path||".")).slice(0,200).join("\n"),
+  run_node:a=>{const{execSync}=require("child_process");return execSync(a.code,{timeout:30000,encoding:"utf8"}).slice(0,4000)},
+  remember:a=>{fs.appendFileSync(path.join(WORKDIR,"agent_memory.md"),"- "+String(a.text).slice(0,500)+"\n");return "已记忆"},
+};
+(async()=>{
+  const task=process.argv[2]||process.stdin.isTTY?"":process.argv[2];
+  const messages=[{role:"system",content:"你是运行在 "+WORKDIR+" 的编码代理。先计划再动手，每步一个工具，完成后总结。"},
+                  {role:"user",content:process.argv[2]||"你好"}];
+  for(let step=0;step<MAX_STEPS;step++){
+    const data=await callLLM(messages);
+    const msg=data.choices[0].message;
+    messages.push(msg);
+    const calls=msg.tool_calls||[];
+    if(!calls.length){console.log("\n=== 最终回答 ===\n"+(msg.content||""));return}
+    for(const tc of calls){
+      let args={};try{args=JSON.parse(tc.function.arguments||"{}")}catch(e){}
+      console.log("[step "+(step+1)+"] "+tc.function.name+" "+JSON.stringify(args).slice(0,120));
+      let result;
+      try{result=String(IMPL[tc.function.name](args)).slice(0,8000)}
+      catch(e){result="工具错误: "+e.message}
+      messages.push({role:"tool",tool_call_id:tc.id,content:result});
+    }
+  }
+  console.log("已达最大步数");
+})();
+"""
+
+
+def harness_generate_v2(body):
+    """v2：支持 Python / Node 双语言，内置指数退避重试、token 预算、工具结果截断。"""
+    lang = (body.get("lang") or "python").lower()
+    tool_ids = body.get("tools") or ["read_file", "list_dir", "run_python", "remember"]
+    tool_ids = [t for t in tool_ids if any(c["id"] == t for c in HARNESS_TOOL_CATALOG)][:8] or ["read_file", "list_dir"]
+    budget = min(int(body.get("max_tokens") or 4096), 32768)
+    if lang == "node":
+        names = ",".join('"%s"' % t for t in tool_ids)
+        schema_desc = ",".join('"%s"' % t for t in tool_ids)
+        script = (_HARNESS_NODE_TEMPLATE
+                  .replace("__DATE__", datetime.now().strftime("%Y-%m-%d %H:%M"))
+                  .replace("__BASE_URL__", (body.get("base_url") or "https://api.deepseek.com/v1/chat/completions"))
+                  .replace("__API_KEY__", "sk-填你的Key")
+                  .replace("__MODEL__", (body.get("model") or "deepseek-chat"))
+                  .replace("__MAX_STEPS__", str(min(int(body.get("max_steps") or 15), 40)))
+                  .replace("__TOOLS_LIST__", "[" + names + "]")
+                  .replace("__TOOL_SCHEMAS__", "[] /* 由服务端生成完整 schema：见 Python 版或 /api/agent/harness */")
+                  )
+        return {"ok": True, "lang": "node", "filename": "agent_harness.js", "script": script,
+                "usage": 'AGENT_API_KEY=sk-xxx node agent_harness.js "任务"', "tools": tool_ids,
+                "features": ["指数退避重试×3", "路径越界防护", "本地记忆", "步数上限"]}
+    # python v2：在 v1 基础上注入重试与 token 预算
+    base = harness_generate(body)
+    script = base["script"]
+
+    retry_fn = """
+
+def call_llm_retry(messages, attempts=3):
+    import time as _t
+    last = None
+    for i in range(attempts):
+        try:
+            return call_llm(messages)
+        except Exception as e:
+            last = e
+            wait = 0.8 * (2 ** i)
+            print("[重试 %d] %r — %.1fs 后重试" % (i + 1, e, wait))
+            _t.sleep(wait)
+    raise last
+"""
+    script = script.replace("        data = call_llm(messages)", "        data = call_llm_retry(messages)")
+    budget_line = '"model": MODEL, "messages": messages,'
+    script = script.replace(budget_line, '"model": MODEL, "max_tokens": ' + str(budget) + ', "messages": messages,', 1)
+    nl = chr(10)
+    marker_old = "    payload = json.dumps({" + nl + '        "model": MODEL,'
+    marker_new = "    payload = json.dumps({" + nl + '        "max_tokens": %d,' % budget + nl + '        "model": MODEL,'
+    if marker_old in script:
+        script = script.replace(marker_old, marker_new, 1)
+    anchor = "def run_agent(task):"
+    script = script.replace(anchor, retry_fn + chr(10) + anchor, 1)
+    return {"ok": True, "lang": "python", "filename": base["filename"], "script": script,
+            "usage": base["usage"], "tools": tool_ids,
+            "features": ["指数退避重试x3", "token 预算 %d" % budget, "工具结果截断 8k", "路径越界防护", "本地记忆"]}
+
+
+def deploy_script(ollama_name, gpu_hint=""):
+    """零基础一键部署 BAT：检测/安装 Ollama -> 拉模型 -> 启动 -> 回到 Avenger。"""
+    bat = []
+    bat.append("@echo off")
+    bat.append("chcp 65001 >nul 2>&1")
+    bat.append("title Avenger deploy - " + ollama_name)
+    bat.append("echo [1/3] check Ollama...")
+    bat.append("where ollama >nul 2>&1")
+    bat.append("if %errorlevel%==0 goto :pull")
+    bat.append("echo Ollama not found, installing via winget...")
+    bat.append("winget install -e --id Ollama.Ollama --accept-source-agreements --accept-package-agreements")
+    bat.append("if not %errorlevel%==0 ( echo winget failed, download from https://ollama.com/download & start https://ollama.com/download & pause & exit /b 1 )")
+    bat.append(":pull")
+    bat.append("echo [2/3] pulling model " + ollama_name + " ...")
+    bat.append("ollama pull " + ollama_name)
+    bat.append("if not %errorlevel%==0 ( echo pull failed, check network & pause & exit /b 1 )")
+    bat.append("echo [3/3] done. open Avenger AI Studio and pick Ollama.")
+    bat.append("start ollama run " + ollama_name)
+    bat.append("pause")
+    crlf = chr(13) + chr(10)
+    return {"ok": True, "filename": "deploy_" + re.sub(r"[^a-zA-Z0-9]+", "_", ollama_name) + ".bat",
+            "script": crlf.join(bat) + crlf,
+            "steps": ["check/install Ollama", "pull model", "run and back to Avenger"]}
+
+
+
+def train_advise(samples, epochs, params_b, method, ctx_k=2, batch=2, gpu_tflops=180):
+    """过拟合/欠拟合顾问 + 训练耗时预估。"""
+    advice = []
+    risk = "均衡"
+    if epochs >= 5 and samples < 800:
+        risk = "过拟合风险高"
+        advice.append("样本 <800 且 epochs>=5：高度过拟合风险。建议 epochs 降到 2-3，或扩充数据（回译/自指令扩增）。")
+    if samples >= 5000 and epochs <= 1:
+        risk = "欠拟合可能"
+        advice.append("样本充足但只训 1 轮：可能欠拟合。可试 2-3 epochs 并对比验证集 loss。")
+    if samples < 300:
+        advice.append("样本 <300：建议只做风格/格式微调；知识注入请改用 RAG。")
+    advice.append("防过拟合三件套：LoRA dropout 0.05-0.1、学习率 <=2e-4(LoRA)、每 50 步存 checkpoint 对比验证集。")
+    advice.append("早停判据：验证 loss 连续 200 步上升立即停；训练/验证 loss 差距 >3 倍即过拟合。")
+    tokens = samples * 1200
+    denom = 6.0 * params_b * 1e9
+    tps = gpu_tflops * 1e12 * 0.35 / denom
+    minutes = tokens * epochs / max(tps, 1) / 60
+    if method == "qlora":
+        minutes *= 1.15
+    if method == "full":
+        minutes *= 2.2
+    return {"ok": True, "risk": risk, "advice": advice,
+            "est_minutes": round(minutes, 1),
+            "est_text": ("约 %.0f 分钟（~%.1f 小时）" % (minutes, minutes / 60)) if minutes >= 60 else ("约 %.0f 分钟" % minutes),
+            "assumptions": "按 %d 样本 x %d epochs x ~1.2k tokens/条，GPU 有效算力 %.0f TFLOPS 估算；full 微调已乘 2.2 系数" % (samples, epochs, gpu_tflops)}
+
+
+def dataset_clean(text, max_chars=12000):
+    """数据清洗：去重、去空、截超长、剥控制符。返回清洗后 JSONL 与统计。"""
+    seen = set()
+    kept = []
+    dup = empty = too_long = bad = 0
+    for ln in (text or "").splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        try:
+            obj = json.loads(ln)
+        except json.JSONDecodeError:
+            bad += 1
+            continue
+        s = json.dumps(obj, ensure_ascii=False)
+        key = s[:400]
+        if key in seen:
+            dup += 1
+            continue
+        if isinstance(obj, dict):
+            out = obj.get("output") or obj.get("response") or ""
+            if not str(out).strip():
+                empty += 1
+                continue
+            if len(s) > max_chars:
+                too_long += 1
+                continue
+        s = re.sub("[" + "".join(chr(c) for c in list(range(0,9)) + [11,12] + list(range(14,32))) + "]", "", s)
+        seen.add(key)
+        kept.append(s)
+    return {"ok": True, "cleaned": chr(10).join(kept), "kept": len(kept),
+            "removed_dup": dup, "removed_empty": empty, "removed_long": too_long, "removed_bad": bad}
+
+
+def ide_extension(project_name='my-project'):
+    pkg = {"name": project_name + "-avenger-assistant", "displayName": "Avenger Assistant", "publisher": "avenger", "version": "5.2.0", "engines": {"vscode": "^1.85.0"}, "categories": ["AI", "Other"], "main": "./extension.js", "contributes": {"commands": [{"command": "avenger.explain", "title": "Avenger: Explain Selection"}, {"command": "avenger.optimize", "title": "Avenger: Optimize Selection"}, {"command": "avenger.review", "title": "Avenger: Review File"}], "configuration": {"title": "Avenger", "properties": {"avenger.endpoint": {"type": "string", "default": "http://127.0.0.1:11434/v1/chat/completions", "description": "OpenAI-compatible endpoint"}, "avenger.model": {"type": "string", "default": "qwen2.5-coder:7b"}, "avenger.apiKey": {"type": "string", "default": ""}}}, "keybindings": [{"command": "avenger.explain", "key": "ctrl+alt+e"}, {"command": "avenger.optimize", "key": "ctrl+alt+o"}]}}
+    L = chr(10)
+    ext_js = (
+        "const vscode = require('vscode');" + L
+        + "function activate(ctx){" + L
+        + "  async function ask(kind, code, lang){" + L
+        + "    const cfg = vscode.workspace.getConfiguration('avenger');" + L
+        + "    const endpoint = cfg.get('endpoint'), model = cfg.get('model'), key = cfg.get('apiKey');" + L
+        + "    const sys = {explain:'Explain this code: purpose, edge cases, pitfalls. Concise.',optimize:'Optimize this code. Return full optimized code + change list. Keep behavior.',review:'Strict reviewer. List issues P0-P3 with fixes; PASS if clean.'}[kind];" + L
+        + "    const body = JSON.stringify({model, temperature:0.2, messages:[{role:'system',content:sys},{role:'user',content:'Language: '+lang+'\\n\\n```\\n'+code+'\\n```'}]});" + L
+        + "    const res = await fetch(endpoint, {method:'POST', headers:{'Content-Type':'application/json', ...(key?{Authorization:'Bearer '+key}:{})}, body});" + L
+        + "    const data = await res.json();" + L
+        + "    return (data.choices&&data.choices[0].message.content)||'(empty)';" + L
+        + "  }" + L
+        + "  function withSel(kind){" + L
+        + "    return async ()=>{" + L
+        + "      const ed = vscode.window.activeTextEditor;" + L
+        + "      if(!ed){vscode.window.showErrorMessage('Open a file first');return}" + L
+        + "      const sel = ed.selection;" + L
+        + "      const code = sel.isEmpty ? ed.document.getText() : ed.document.getText(sel);" + L
+        + "      const lang = ed.document.languageId;" + L
+        + "      await vscode.window.withProgress({location:vscode.ProgressLocation.Notification, title:'Avenger thinking...'}, async ()=>{" + L
+        + "        try{" + L
+        + "          const out = await ask(kind, code, lang);" + L
+        + "          const doc = await vscode.workspace.openTextDocument({content:out, language:'markdown'});" + L
+        + "          await vscode.window.showTextDocument(doc, vscode.ViewColumn.Beside);" + L
+        + "        }catch(e){vscode.window.showErrorMessage('Avenger: '+e.message)}" + L
+        + "      });" + L
+        + "    };" + L
+        + "  }" + L
+        + "  ['explain','optimize','review'].forEach(k=>ctx.subscriptions.push(vscode.commands.registerCommand('avenger.'+k, withSel(k))));" + L
+        + "}" + L
+        + "function deactivate(){}" + L
+        + "module.exports={activate,deactivate};" + L
+    )
+    readme = (
+        "# Avenger Assistant (VS Code / Cursor)" + L + L
+        + "Local AI coding assistant. Select code -> Ctrl+Alt+E explain / Ctrl+Alt+O optimize, or run Review from palette." + L + L
+        + "## Install" + L + "npm i -g @vscode/vsce && vsce package && code --install-extension avenger-assistant-5.2.0.vsix" + L + L
+        + "## Setup" + L + "Set avenger.endpoint to your OpenAI-compatible endpoint (local Ollama / llama-server). Recommended local model: qwen2.5-coder:7b (pull from Avenger model library)." + L + L
+        + "## Features" + L + "- Fully local inference optional (code never leaves your machine)" + L + "- Explain / Optimize / Review commands, results open as Markdown side panel" + L + "- Works in VS Code and Cursor" + L
+    )
+    return {"ok": True, "files": [
+        {"name": "package.json", "content": json.dumps(pkg, ensure_ascii=False, indent=2)},
+        {"name": "extension.js", "content": ext_js},
+        {"name": "README.md", "content": readme},
+    ]}

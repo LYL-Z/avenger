@@ -126,6 +126,38 @@ def main():
                 pass
             elif method == "tools/list":
                 _reply(msg_id, {"tools": TOOLS})
+            elif method == "resources/list":
+                try:
+                    import avenger_studio as studio
+                    from pathlib import Path
+                    notes = studio.notes_list(Path(__file__).resolve().parent)
+                    resources = [{"uri": "avenger://notes/" + n["id"], "name": n["title"] or "无标题",
+                                  "description": (n["body"] or "")[:80], "mimeType": "text/plain"} for n in notes[:50]]
+                except Exception:
+                    resources = []
+                resources.append({"uri": "avenger://memory/all", "name": "Agent 全部记忆", "mimeType": "text/plain"})
+                _reply(msg_id, {"resources": resources})
+            elif method == "resources/read":
+                uri = (req.get("params") or {}).get("uri", "")
+                if uri == "avenger://memory/all":
+                    import avenger_agent as agent
+                    from pathlib import Path
+                    items = agent.mem_list(Path(__file__).resolve().parent)
+                    text = chr(10).join("- [%s] %s" % (i["kind"], i["content"]) for i in items) or "(空)"
+                elif uri.startswith("avenger://notes/"):
+                    import avenger_studio as studio
+                    from pathlib import Path
+                    nid = uri.rsplit("/", 1)[-1]
+                    note = next((n for n in studio.notes_list(Path(__file__).resolve().parent) if n["id"] == nid), None)
+                    text = (note["title"] + chr(10) + note["body"]) if note else "未找到"
+                else:
+                    _error(msg_id, -32602, "Unknown uri")
+                    continue
+                _reply(msg_id, {"contents": [{"uri": uri, "mimeType": "text/plain", "text": text[:20000]}]})
+            elif method == "prompts/list":
+                _reply(msg_id, {"prompts": [
+                    {"name": "env-health-check", "description": "让 AI 检查本机 Python 环境健康度",
+                     "arguments": [], "messages": []}]})
             elif method == "tools/call":
                 name = (req.get("params") or {}).get("name", "")
                 args = (req.get("params") or {}).get("arguments") or {}

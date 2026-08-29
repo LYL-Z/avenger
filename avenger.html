@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="avenger-token" content="%%AVENGER_TOKEN%%">
-<title>Avenger V5.1 — 全栈开发者全景工作台</title>
+<title>Avenger V5.2 — 全栈开发者全景工作台</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23e07856'/%3E%3Ctext x='32' y='44' font-family='Georgia,serif' font-size='36' font-weight='bold' fill='%23fff' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
 <style>
 /* ================================================================
@@ -642,6 +642,24 @@ html[data-theme="light"] .code-block{background:rgba(20,16,12,.88)}
 /* 动画初始态（Anime.js 编排） */
 .a-init{opacity:0;transform:translateY(16px)}
 html.reduce-motion .a-init,html.reduce-auto .a-init{opacity:1;transform:none}
+.boot-overlay{position:fixed;inset:0;z-index:5000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;transition:opacity .5s var(--ease-out)}
+.boot-overlay.done{opacity:0;pointer-events:none}
+.boot-logo{width:64px;height:64px;border-radius:18px;background:linear-gradient(135deg,var(--accent),#c05840);display:flex;align-items:center;justify-content:center;font-family:var(--font-serif);font-size:34px;font-weight:700;color:#fff;box-shadow:0 12px 40px var(--accent-g);animation:bootPop .7s var(--spring) both}
+.boot-title{font-family:var(--font-serif);font-size:18px;letter-spacing:.06em;color:var(--text-2);animation:bootFade .6s .25s var(--ease-out) both}
+.boot-bar{width:120px;height:2px;border-radius:2px;background:var(--code-bg);overflow:hidden}
+.boot-bar i{display:block;height:100%;width:40%;background:var(--accent);border-radius:2px;animation:bootBar .9s .15s var(--ease-out) both}
+@keyframes bootPop{from{opacity:0;transform:scale(.6) rotate(-8deg)}60%{transform:scale(1.06)}to{opacity:1;transform:scale(1)}}
+@keyframes bootFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes bootBar{from{transform:translateX(-120%)}to{transform:translateX(320%)}}
+.pair-code{font-family:var(--font-mono);font-size:34px;font-weight:700;letter-spacing:.32em;color:var(--accent);background:var(--code-bg);border-radius:12px;padding:8px 18px 8px 24px}
+@media(max-width:720px){
+  .ledger-row{display:flex!important;flex-wrap:wrap;gap:6px 10px}
+  .statline .st{padding-right:16px;margin-right:16px}
+  .statline .st b{font-size:22px}
+  .masthead{padding:18px 16px 16px}
+  .masthead h1{font-size:22px}
+  .quant-grid{grid-template-columns:repeat(2,1fr)}
+}
 
 </style>
 </head>
@@ -731,7 +749,7 @@ html.reduce-motion .a-init,html.reduce-auto .a-init{opacity:1;transform:none}
   <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="brand-logo" title="双击折叠侧边栏" ondblclick="toggleSidebarFold()">A</div>
-      <div class="brand-text"><div class="brand-name">Avenger</div><div class="brand-sub">V5.1 · 全景工作台</div></div>
+      <div class="brand-text"><div class="brand-name">Avenger</div><div class="brand-sub">V5.2 · 全景工作台</div></div>
       <button type="button" class="btn btn-sm btn-icon" style="margin-left:auto" onclick="toggleSidebarFold()" title="折叠侧边栏" aria-label="折叠侧边栏"><svg viewBox="0 0 24 24"><use href="#i-sidebar"/></svg></button>
     </div>
     <nav class="sidebar-nav" id="sidebarNav">
@@ -3245,7 +3263,9 @@ async function loadAgentHut(token){
       </div>
       <div class="mh-foot"><div class="mh-actions">
         <button class="btn btn-primary" onclick="skillCreateForm()">${icon('i-plus')} 创建技能</button>
+        <button class="btn" onclick="skillBundleGen()">${icon('i-layers')} 生成组合技能包</button>
         <button class="btn" onclick="mcpSnippetModal()">${icon('i-plug')} 生成 MCP 接入配置</button>
+        <button class="btn" onclick="mcpDoctor()">${icon('i-shield')} MCP 配置体检</button>
       </div><span style="font-size:11px;color:var(--text-3)">SKILL.md 遵循 agentskills.io 开放标准</span></div>
     </div>
     <div class="subtabs"><button class="subtab active" onclick="genSub(this,'hut-skills','hut-pane')">技能库</button><button class="subtab" onclick="genSub(this,'hut-mcp','hut-pane')">MCP 生态</button><button class="subtab" onclick="genSub(this,'hut-harness','hut-pane')">Harness 框架</button><button class="subtab" onclick="genSub(this,'hut-ide','hut-pane')">AI-IDE 配置</button></div>
@@ -3270,7 +3290,8 @@ function renderSkillsPane(){
         ${k.installed?`<button class="btn btn-sm btn-danger" onclick="skillUninstall('${k.id}')">卸载</button>`:`<button class="btn btn-sm btn-primary" onclick="skillInstall('${k.id}')">安装</button>`}
       </div></div>`).join('')}</div>
     <div class="hsec"><span class="no">02</span><h3>本机已安装技能</h3><div class="rule"></div><span style="font-size:11px;color:var(--text-3)">含 Claude ~/.claude/skills 等目录扫描</span></div>
-    <div class="ledger">${(s.installed||[]).length?(s.installed||[]).map(k=>`<div class="ledger-row" style="grid-template-columns:1fr 1.6fr auto auto">
+    <div class="ledger">${(s.installed||[]).length?(s.installed||[]).map(k=>`<div class="ledger-row" style="grid-template-columns:26px 1fr 1.6fr auto auto">
+      <input type="checkbox" class="bundle-cb" value="${esc(k.id)}" title="勾选加入组合包">
       <strong>${esc(k.name)}</strong><span class="mono" style="font-size:10.5px;color:var(--text-3)">${esc(k.path)}</span>
       <span class="badge badge-info">${esc(k.scope)}</span>
       ${k.scope==='avenger'?`<button class="btn btn-sm btn-danger" onclick="skillUninstall('${esc(k.id)}')">${icon('i-trash')}</button>`:'<span></span>'}
@@ -3303,6 +3324,32 @@ function skillCreateForm(){
     <input id="skDesc" placeholder="一句话描述（模型据此决定何时调用）" style="width:100%;margin-bottom:8px">
     <textarea id="skBody" style="width:100%;height:200px;font-family:var(--font-mono);font-size:12px" placeholder="# 技能指令 Markdown 正文&#10;## 步骤&#10;1. ..."></textarea>
   </div><div class="modal-footer"><button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="doSkillCreate()">创建</button></div>`);
+}
+async function skillBundleGen(){
+  const sel=Array.from(document.querySelectorAll('.bundle-cb:checked')).map(c=>c.value);
+  if(sel.length<2){toast('请先在「本机已安装技能」勾选至少 2 个技能','warn');return}
+  const d=await api('/api/agent/skills/bundle',{method:'POST',body:{ids:sel}});
+  if(d?.ok)downloadText(d.filename,d.markdown);else toast(d?.error||'生成失败','error');
+}
+function mcpDoctor(){
+  showModal(`<div class="modal-title">MCP 配置体检</div><div class="modal-body">
+    <p style="font-size:12px;color:var(--text-3);margin-bottom:8px">粘贴 mcp.json / claude_desktop_config.json，校验 JSON 合法性、mcpServers 结构与 command/args 完整性。</p>
+    <textarea id="mcpJson" style="width:100%;height:180px;font-family:var(--font-mono);font-size:11.5px" placeholder='{ "mcpServers": { "filesystem": { "command": "npx", "args": ["-y","..."] } } }'></textarea>
+    <div id="mcpDoctorOut" style="margin-top:10px"></div>
+  </div><div class="modal-footer"><button class="btn" onclick="closeModal()">关闭</button><button class="btn btn-primary" onclick="doMcpDoctor()">体检</button></div>`);
+}
+function doMcpDoctor(){
+  const box=$('mcpDoctorOut');const raw=($('mcpJson')||{}).value||'';
+  let data;try{data=JSON.parse(raw)}catch(e){box.innerHTML='<span class="badge badge-danger">JSON 解析失败: '+esc(e.message.slice(0,80))+'</span>';return}
+  const servers=data.mcpServers||data.servers||null;
+  if(!servers||typeof servers!=='object'){box.innerHTML='<span class="badge badge-danger">未找到 mcpServers / servers 配置块</span>';return}
+  const issues=[];const names=Object.keys(servers);
+  names.forEach(n=>{const c=servers[n]||{};
+    if(!c.command)issues.push(n+': 缺少 command');
+    if(!Array.isArray(c.args))issues.push(n+': args 应为数组');});
+  box.innerHTML='<span class="badge '+(issues.length?'badge-warning':'badge-success')+'">'+(issues.length?issues.length+' 处问题':'结构合法 · '+names.length+' 个服务器')+'</span>'
+    +(issues.length?'<ul style="font-size:12px;margin:8px 0 0 18px;line-height:1.8">'+issues.map(i=>'<li>'+esc(i)+'</li>').join('')+'</ul>':'')
+    +'<div style="font-size:11px;color:var(--text-3);margin-top:8px">建议：npx/uvx 类命令首启需联网拉包；Windows 下 command 用 npx.cmd 更稳。</div>';
 }
 async function doSkillCreate(){
   const d=await api('/api/agent/skills/create',{method:'POST',body:{name:$('skName').value,description:$('skDesc').value,body:$('skBody').value}});
@@ -3368,7 +3415,7 @@ function renderHarnessPane(){
         <div class="hsec"><span class="no">01</span><h3>Coding-Agent Harness 生成器</h3></div>
         <p style="font-size:12.5px;color:var(--text-2);line-height:1.65;margin-bottom:12px">生成一个<strong>单文件、零依赖</strong>的 Python Agent 运行框架：OpenAI 兼容 function-calling 循环、工具注册表、路径越界防护、步数上限、本地记忆。与 DeepSeek-Harness 同类思路，拿来即改。</p>
         <div style="display:flex;flex-direction:column;gap:10px">
-          <div class="toolbar"><input id="hUrl" value="https://api.deepseek.com/v1/chat/completions" style="flex:1;min-width:220px" title="Base URL"><input id="hModel" value="deepseek-chat" style="width:150px" placeholder="模型"><input id="hSteps" type="number" value="15" min="3" max="40" style="width:80px" title="最大步数"></div>
+          <div class="toolbar"><select id="hLang" style="width:110px"><option value="python">Python</option><option value="node">Node.js</option></select><input id="hUrl" value="https://api.deepseek.com/v1/chat/completions" style="flex:1;min-width:200px" title="Base URL"><input id="hModel" value="deepseek-chat" style="width:140px" placeholder="模型"><input id="hSteps" type="number" value="15" min="3" max="40" style="width:76px" title="最大步数"></div>
           <div><div style="font-size:12px;color:var(--text-3);margin-bottom:6px">启用的工具</div>
           <div class="toolbar">${[['read_file','读文件'],['list_dir','列目录'],['run_python','跑 Python'],['http_get','HTTP GET'],['remember','写入记忆']].map(t=>`<label class="checkbox"><input type="checkbox" class="hTool" value="${t[0]}" ${t[0]==='http_get'?'':'checked'}> ${t[1]}</label>`).join('')}</div></div>
           <div><button class="btn btn-primary" onclick="genHarness()">${icon('i-zap')} 生成 Harness</button></div>
@@ -3391,8 +3438,9 @@ function renderHarnessPane(){
 }
 async function genHarness(){
   const tools=Array.from(document.querySelectorAll('.hTool:checked')).map(c=>c.value);
-  const d=await api('/api/agent/harness',{method:'POST',body:{base_url:$('hUrl').value.trim(),model:$('hModel').value.trim(),max_steps:parseInt($('hSteps').value)||15,tools}});
+  const d=await api('/api/agent/harness',{method:'POST',body:{lang:$('hLang').value,base_url:$('hUrl').value.trim(),model:$('hModel').value.trim(),max_steps:parseInt($('hSteps').value)||15,tools}});
   if(!d?.ok){toast(d?.error||'生成失败','error');return}
+  if(d.features)toast('已含: '+d.features.join(' / '),'info');
   $('harnessOut').innerHTML=`<div class="code-block a-init"><div class="code-head"><b>${esc(d.filename)}</b><span style="display:flex;gap:6px"><button class="btn btn-sm" onclick="copyPath(window._harnessScript)">${icon('i-copy')} 复制</button><button class="btn btn-sm btn-primary" onclick="downloadText('${d.filename}',window._harnessScript)">${icon('i-save')} 下载</button></span></div><pre>${esc(d.script)}</pre></div>`;
   window._harnessScript=d.script;
   choreo($('harnessOut'));
@@ -3410,7 +3458,8 @@ function renderIdePane(){
           <div class="toolbar"><input id="ideBuild" placeholder="构建命令，如 npm run build（可选）" style="flex:1"><input id="ideTest" placeholder="测试命令，如 pytest -q（可选）" style="flex:1"></div>
           <textarea id="ideStyle" style="width:100%;height:72px;font-size:12px" placeholder="风格约定（可选）：如 遵循现有代码风格；改动最小化；组件用函数式…"></textarea>
           <div><button class="btn btn-primary" onclick="genIde()">${icon('i-zap')} 生成</button>
-          <button class="btn" onclick="saveIde()" id="ideSaveBtn" style="display:none">${icon('i-save')} 写入项目目录</button></div>
+          <button class="btn" onclick="saveIde()" id="ideSaveBtn" style="display:none">${icon('i-save')} 写入项目目录</button>
+          <button class="btn" onclick="genVscodeExt()">${icon('i-puzzle')} 生成 VS Code 扩展脚手架</button></div>
         </div>
       </div>
       <div>
@@ -3427,6 +3476,15 @@ async function genIde(){
   $('ideOut').innerHTML=`<div class="code-block a-init"><div class="code-head"><b>${esc(d.filename)}</b><span style="display:flex;gap:6px"><button class="btn btn-sm" onclick="copyPath(window._ideFile.content)">${icon('i-copy')} 复制</button><button class="btn btn-sm btn-primary" onclick="downloadText('${d.filename}',window._ideFile.content)">${icon('i-save')} 下载</button></span></div><pre>${esc(d.content)}</pre></div>`;
   $('ideSaveBtn').style.display=$('idePath').value.trim()?'inline-flex':'none';
   choreo($('ideOut'));
+}
+async function genVscodeExt(){
+  const d=await api('/api/agent/ide/extension',{method:'POST',body:{project:'my-project'}});
+  if(!d?.ok){toast(d?.error||'生成失败','error');return}
+  window._extFiles=d.files;
+  showModal(`<div class="modal-title">VS Code / Cursor 扩展脚手架</div><div class="modal-body">
+    <p style="font-size:12px;color:var(--text-3);margin-bottom:10px">三件套下载后 <span class="mono">vsce package</span> 即得 .vsix：解释(Ctrl+Alt+E) / 优化(Ctrl+Alt+O) / 整文件审查，结果以 Markdown 侧栏打开；端点默认本机 Ollama，可在扩展设置改任意 OpenAI 兼容端点。</p>
+    <div class="toolbar">${d.files.map((f,i)=>'<button class="btn btn-sm" data-fi="'+i+'" data-fn="'+esc(f.name)+'" onclick="downloadText(this.dataset.fn,window._extFiles[this.dataset.fi].content)">'+icon('i-save')+' '+esc(f.name)+'</button>').join('')}</div>
+  </div><div class="modal-footer"><button class="btn" onclick="closeModal()">关闭</button></div>`);
 }
 async function saveIde(){
   if(!window._ideFile)return;
@@ -3469,7 +3527,10 @@ function renderMemPane(list){
           <div><button class="btn btn-primary" onclick="memSave()">${icon('i-plus')} 保存</button>
           <button class="btn" onclick="memExport()">${icon('i-external')} 导出 Markdown</button></div>
         </div>
-        <div style="margin-top:16px;font-size:11.5px;color:var(--text-3);line-height:1.7">${icon('i-info')} 记忆存于 <span class="mono">avenger_notes.db</span> 的 agent_memory 表；已内置同名 MCP 工具（avenger_memory_search），你的 AI 客户端可直接检索。</div>
+        <div class="toolbar" style="margin-top:12px">
+          <button class="btn btn-sm btn-danger" onclick="memClearAsk()">${icon('i-trash')} 批量清理</button>
+        </div>
+        <div style="margin-top:14px;font-size:11.5px;color:var(--text-3);line-height:1.7">${icon('i-info')} 记忆存于 <span class="mono">avenger_notes.db</span> 的 agent_memory 表；已内置同名 MCP 工具（avenger_memory_search），你的 AI 客户端可直接检索。</div>
       </div>
       <div>
         <div class="hsec"><span class="no">02</span><h3>检索</h3></div>
@@ -3481,7 +3542,7 @@ function renderMemPane(list){
 function memListHtml(list){
   const q=_memQ.toLowerCase();
   const rows=list.filter(m=>!q||(m.content+m.tags).toLowerCase().includes(q));
-  return rows.length?rows.map(m=>`<div class="mem-item"><div style="display:flex;justify-content:space-between;align-items:center"><span class="mk">${esc(m.kind)}</span><span style="display:flex;gap:6px;align-items:center"><span style="font-size:10px;color:var(--text-4)">${esc(m.created||'')}</span><button class="btn btn-sm btn-ghost btn-icon" onclick="memDel('${m.id}')" title="删除">${icon('i-trash')}</button></span></div><div style="font-size:12.5px;line-height:1.6;margin-top:3px">${esc(m.content)}</div>${m.tags?`<div style="margin-top:5px">${m.tags.split(/[,，]/).filter(Boolean).map(t=>`<span class="badge badge-accent" style="font-size:9px">${esc(t.trim())}</span>`).join(' ')}</div>`:''}</div>`).join(''):'<div class="empty-state">没有记忆</div>';
+  return rows.length?rows.map(m=>`<div class="mem-item" style="cursor:pointer" onclick="memRelated('${m.id}')" title="点击查看关联记忆"><div style="display:flex;justify-content:space-between;align-items:center"><span class="mk">${esc(m.kind)}</span><span style="display:flex;gap:6px;align-items:center"><span style="font-size:10px;color:var(--text-4)">${esc(m.created||'')}</span><button class="btn btn-sm btn-ghost btn-icon" onclick="memDel('${m.id}')" title="删除">${icon('i-trash')}</button></span></div><div style="font-size:12.5px;line-height:1.6;margin-top:3px">${esc(m.content)}</div>${m.tags?`<div style="margin-top:5px">${m.tags.split(/[,，]/).filter(Boolean).map(t=>`<span class="badge badge-accent" style="font-size:9px">${esc(t.trim())}</span>`).join(' ')}</div>`:''}</div>`).join(''):'<div class="empty-state">没有记忆</div>';
 }
 async function memRefresh(){
   const d=await api('/api/agent/memory');
@@ -3491,6 +3552,22 @@ async function memSave(){
   const d=await api('/api/agent/memory/add',{method:'POST',body:{kind:$('memKind').value,content:$('memBody').value,tags:$('memTags').value}});
   if(d?.ok){$('memBody').value='';toast('已记住','success');memRefresh();loadMemCtx(navToken)}
   else toast(d?.error||'失败','error');
+}
+function memClearAsk(){
+  showModal(`<div class="modal-title">批量清理记忆</div><div class="modal-body">
+    <div class="toolbar" style="margin-bottom:10px"><select id="mcKind" style="width:150px"><option value="">全部类目</option><option value="fact">fact</option><option value="preference">preference</option><option value="project">project</option><option value="person">person</option><option value="insight">insight</option></select>
+    <label class="checkbox">清理 <input type="number" id="mcDays" value="30" min="1" max="365" style="width:70px"> 天前的旧记忆</label></div>
+    <div style="font-size:12px;color:var(--text-3)">二选一：只选类目 = 清该类目全部；只填天数 = 清所有类目的旧记忆。</div>
+  </div><div class="modal-footer"><button class="btn" onclick="closeModal()">取消</button><button class="btn btn-danger" onclick="doMemClear()">确认清理</button></div>`);
+}
+async function doMemClear(){
+  const d=await api('/api/agent/memory/clear',{method:'POST',body:{kind:$('mcKind').value,before_days:parseInt($('mcDays').value)||0}});
+  if(d?.ok){closeModal();toast('已清理 '+d.deleted+' 条','success');memRefresh();loadMemCtx(navToken)}else toast(d?.error||'失败','error');
+}
+async function memRelated(id){
+  const d=await api('/api/agent/memory/related?id='+encodeURIComponent(id));
+  if(!d?.ok){toast('暂无关联','info');return}
+  showModal(`<div class="modal-title">关联记忆（按重合度）</div><div class="modal-body">${(d.items||[]).length?d.items.map(x=>`<div class="mem-item" style="margin-bottom:8px"><span class="mk">${esc(x.kind)}</span> <span class="badge badge-accent" style="font-size:9px">相关度 ${x.score}</span><div style="font-size:12.5px;margin-top:4px">${esc(x.content)}</div></div>`).join(''):'<div class="empty-state">暂无关联记忆</div>'}</div><div class="modal-footer"><button class="btn" onclick="closeModal()">关闭</button></div>`);
 }
 async function memDel(id){await api('/api/agent/memory/delete',{method:'POST',body:{id}});toast('已删除','info');memRefresh();loadMemCtx(navToken)}
 async function memExport(){
@@ -3654,7 +3731,10 @@ function renderTrainPane(){
       <div>
         <div class="hsec"><span class="no">03</span><h3>数据集体检</h3></div>
         <textarea id="dsText" style="width:100%;height:150px;font-family:var(--font-mono);font-size:11.5px" placeholder='粘贴 JSONL 训练集（每行一条）…&#10;{"instruction":"...","output":"..."}  (alpaca)&#10;{"messages":[...]}  (chat)&#10;{"conversations":[...]}  (sharegpt)'></textarea>
-        <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="dsValidate()">${icon('i-check')} 校验与统计</button>
+        <div class="toolbar" style="margin-top:8px">
+          <button class="btn btn-primary btn-sm" onclick="dsValidate()">${icon('i-check')} 校验与统计</button>
+          <button class="btn btn-sm" onclick="dsClean()">${icon('i-filter')} 一键清洗</button>
+        </div>
         <div id="dsOut" style="margin-top:12px"></div>
       </div>
       <div>
@@ -3664,9 +3744,11 @@ function renderTrainPane(){
           <select id="tvMethod"><option value="qlora">QLoRA</option><option value="lora">LoRA</option><option value="full">全参微调</option></select>
           <label class="checkbox">ctx <input type="number" id="tvCtx" value="2" min="1" max="32" style="width:64px">k</label>
           <label class="checkbox">batch <input type="number" id="tvBatch" value="2" min="1" max="64" style="width:64px"></label>
-          <button class="btn btn-sm" onclick="trainVramCalc()">估算</button>
+          <button class="btn btn-sm" onclick="trainVramCalc()">显存估算</button>
+          <button class="btn btn-sm btn-primary" onclick="trainAdviseGo()">${icon('i-activity')} 耗时与过拟合顾问</button>
         </div>
         <div id="tvOut" style="margin-top:12px"></div>
+        <div id="taOut" style="margin-top:12px"></div>
         <div style="font-size:11px;color:var(--text-3);margin-top:6px">估算为经验公式（权重 + 优化器状态 + 激活），实际以框架日志为准。</div>
       </div>
     </div>
@@ -3707,6 +3789,27 @@ async function dsValidate(){
   const reg=$('dsRegBox');
   if(reg)reg.style.display='block';
   choreo($('dsOut'));
+}
+async function trainAdviseGo(){
+  const d=await api('/api/train/advise',{method:'POST',body:{samples:parseInt(prompt('训练样本数',(_dsLast?_dsLast.valid:1000))||1000),epochs:parseInt(prompt('训练轮数 epochs',3)||3),params:parseFloat($('tvParams').value)||7,method:$('tvMethod').value}});
+  const box=$('taOut');if(!box)return;
+  if(!d?.ok){box.innerHTML='<span class="badge badge-danger">'+esc(d?.error||'失败')+'</span>';return}
+  const riskCls=d.risk.indexOf('过拟合')>=0?'badge-danger':d.risk.indexOf('欠拟合')>=0?'badge-warning':'badge-success';
+  box.innerHTML='<div class="card glass-light" style="padding:14px">'
+    +'<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap"><b style="font-family:var(--font-serif);font-size:18px">'+esc(d.est_text)+'</b><span class="badge '+riskCls+'">'+esc(d.risk)+'</span></div>'
+    +'<ul style="font-size:12px;color:var(--text-2);line-height:1.8;margin-left:16px">'+d.advice.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>'
+    +'<div style="font-size:10.5px;color:var(--text-4);margin-top:6px">'+esc(d.assumptions)+'</div></div>';
+}
+async function dsClean(){
+  const text=$('dsText').value;
+  if(!text.trim()){toast('先粘贴数据集','error');return}
+  const d=await api('/api/train/clean',{method:'POST',body:{text}});
+  if(!d?.ok){toast(d?.error||'清洗失败','error');return}
+  window._cleanTxt=d.cleaned;
+  const box=$('dsOut');
+  box.innerHTML='<div class="badge badge-success">'+icon('i-check')+' 清洗完成：保留 '+d.kept+' 条</div>'
+    +'<div style="font-size:11.5px;color:var(--text-3);margin-top:6px">移除：重复 '+d.removed_dup+' · 空输出 '+d.removed_empty+' · 超长 '+d.removed_long+' · 非法 JSON '+d.removed_bad+'</div>'
+    +'<div class="toolbar" style="margin-top:8px"><button class="btn btn-sm btn-primary" onclick="dsCleanDownload()">'+icon('i-save')+' 下载清洗后 JSONL</button></div>';
 }
 function trainVramCalc(){
   const p=parseFloat($('tvParams').value)||7, method=$('tvMethod').value, ctx=parseInt($('tvCtx').value)||2, batch=parseInt($('tvBatch').value)||2;
@@ -3777,7 +3880,7 @@ async function renderModelsPane(){
   const recs=best.map(({f,v})=>'<div class="card glass-light a-init" style="padding:14px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-family:var(--font-serif)">'+esc(f.family)+' '+esc(v.label)+'</b><span class="badge badge-success">● 显存充裕</span></div>'
     +'<div class="mono" style="font-size:11px;color:var(--text-3);margin:6px 0">'+esc(f.org)+' · '+v.size_gb+' GiB · 显存 '+v.vram_est+'GB · ctx '+Math.round(f.ctx/1024)+'k'+(v.downloaded?' · 已下载':'')+'</div>'
-    +'<div class="toolbar"><button class="btn btn-sm" onclick="modelCmd(\''+v.ollama+'\',\'pull\')">下载</button><button class="btn btn-sm btn-primary" onclick="modelCmd(\''+v.ollama+'\',\'run\')">启动</button></div>'
+    +'<div class="toolbar"><button class="btn btn-sm" onclick="modelCmd(\''+v.ollama+'\',\'pull\')">下载</button><button class="btn btn-sm" onclick="deployScript(\''+v.ollama+'\')">部署脚本</button><button class="btn btn-sm btn-primary" onclick="modelCmd(\''+v.ollama+'\',\'run\')">启动</button></div>'
     +'</div>').join('');
   pane.innerHTML=
     '<div class="split-64"><div>'
@@ -3801,6 +3904,10 @@ async function renderModelsPane(){
     +'<div style="font-size:11.5px;color:var(--text-3);line-height:1.7">体积按 参数×量化位宽×1.08 估算；显存预估含 8k 上下文 KV 缓存与 0.6GB 开销。「可内存卸载」表示超出部分由系统内存承接（速度下降）。下载/启动命令基于 Ollama，一键复制并附接入说明。</div>'
     +'</div></div>';
   choreo(pane);popCells(pane);
+}
+async function deployScript(name){
+  const d=await api('/api/agent/deploy/script',{method:'POST',body:{ollama:name}});
+  if(d?.ok)downloadText(d.filename,d.script);else toast(d?.error||'生成失败','error');
 }
 function modelCmd(name,mode){
   const cmd=(mode==='pull'?'ollama pull ':'ollama run ')+name;
@@ -4096,6 +4203,24 @@ function renderLearn(token){
       <div class="panel-body"><div class="grid grid-2" id="learnGrid">${learnGridHtml()}</div></div></div>`,token);
 }
 
+let _lanState={lan:false,ip:'',port:0};
+async function refreshLan(){
+  const d=await api('/api/lan/info');
+  if(d){_lanState=d;const el=$('lanUrl');if(el&&d.lan)el.textContent=d.url||''}
+}
+function toggleLan(){
+  const on=!prefs.get('lanMode',false);
+  confirmModal(on?'开启局域网访问':'关闭局域网访问',on?'服务将监听 0.0.0.0:'+(_lanState.port||8765)+'，同一 Wi-Fi 内设备可访问，首次使用需配对码换取令牌。':'恢复仅本机 127.0.0.1 访问。',async()=>{
+    const d=await api('/api/lan/enable',{method:'POST',body:{on}});
+    if(d?.ok){prefs.set('lanMode',on);toast(on?'已开启局域网访问':'已恢复仅本机访问','success');loadSettings(navToken)}
+    else toast(d?.error||'切换失败','error');
+  },{iconClass:on?'info':'danger',confirmText:on?'开启':'关闭'});
+}
+async function newPairCode(){
+  const d=await api('/api/pair/code');
+  if(d?.ok){const el=$('pairCode');if(el)el.textContent=d.code;toast('配对码已生成，5 分钟内有效','info')}
+  else toast(d?.error||'生成失败','error');
+}
 function loadSettings(token){
   const eyeOn=prefs.get('eyeOnAt','20:00'),eyeOff=prefs.get('eyeOffAt','08:00');
   const dens=prefs.get('density','comfortable'),rm=prefs.get('reduceMotion','auto'),mode=prefs.get('themeMode',prefs.get('theme',null)?'manual':'system');
@@ -4103,6 +4228,8 @@ function loadSettings(token){
   const pLevel=prefs.get('particleLevel', prefs.get('particles',true)?'mid':'off');
   const gLevel=prefs.get('glassLevel','full');
   const curSkin=prefs.get('skin','ember');
+  refreshLan();
+  if(prefs.get('lanMode',false))setTimeout(newPairCode,600);
   renderModule('settings',`
     <div class="panel glass"><div class="panel-head"><div><div class="panel-title">${icon('i-settings')} 设置</div><div class="panel-desc">外观、动效、护眼、数据 — 全部留在本机</div></div></div>
       <div class="panel-body" style="display:flex;flex-direction:column;gap:20px">
@@ -4125,6 +4252,26 @@ function loadSettings(token){
           <label class="checkbox"><input type="checkbox" ${prefs.get('petOn',true)!==false?'checked':''} onchange="prefs.set('petOn',this.checked);mountPet()">显示宠物</label>
           <button class="btn btn-sm" style="margin-left:10px" onclick="prefs.set('petPos',null);mountPet();toast('宠物已归位','info')">${icon('i-refresh')} 复位位置</button>
           <div class="pet-pick" style="margin-top:8px">${Object.entries(PETS).map(([id,p])=>`<button type="button" class="pet-card ${prefs.get('pet','ember')===id?'on':''}" onclick="setPet('${id}')" title="点击领养">${p.svg}<div style="font-size:11.5px;margin-top:3px">${esc(p.name)}</div><div style="font-size:10px;color:var(--text-4)">${esc(p.tag)}</div></button>`).join('')}</div>
+        </div>
+        <div>
+          <div style="font-weight:600;margin-bottom:8px">手机直连电脑</div>
+          <p style="font-size:12px;color:var(--text-3);margin-bottom:10px">同一 Wi-Fi 下，用手机浏览器打开下方地址，即可操控工作台全部模块（数据同源实时同步）。跨网建议用 Tailscale 组网后同样操作，流量端到端加密。</p>
+          <div class="toolbar" style="flex-wrap:wrap">
+            <button class="btn btn-sm ${prefs.get('lanMode',false)?'btn-danger':'btn-primary'}" id="lanToggle" onclick="toggleLan()">${prefs.get('lanMode',false)?'关闭局域网访问':'开启局域网访问（0.0.0.0）'}</button>
+            <button class="btn btn-sm" onclick="newPairCode()" style="display:${prefs.get('lanMode',false)?'inline-flex':'none'}" id="pairBtn">${icon('i-keyboard')} 生成配对码</button>
+          </div>
+          <div id="lanBox" style="margin-top:10px;display:${prefs.get('lanMode',false)?'block':'none'}">
+            <div style="font-size:12px;color:var(--text-3)">手机浏览器访问（点击复制）</div>
+            <div class="mono" id="lanUrl" style="font-size:15px;margin:4px 0;cursor:pointer" onclick="copyPath(this.textContent)">—</div>
+            <div style="font-size:12px;color:var(--text-3);margin-top:8px">配对码（5 分钟有效）</div>
+            <div class="pair-code" id="pairCode">— 未生成 —</div>
+            <ol style="font-size:11.5px;color:var(--text-3);margin-top:10px;line-height:1.8;padding-left:18px">
+              <li>开启局域网访问（服务自动切换到 0.0.0.0 监听）</li>
+              <li>手机连同一 Wi-Fi，浏览器打开上方地址</li>
+              <li>点「生成配对码」；手机端执行操作时输入配对码即可换取会话令牌</li>
+              <li>云端模式：两端装 <a href="https://tailscale.com" target="_blank" rel="noopener">Tailscale</a> 登录同一账号，用 Tailscale IP 访问</li>
+            </ol>
+          </div>
         </div>
         <div>
           <div style="font-weight:600;margin-bottom:8px">外观</div>
@@ -4426,6 +4573,16 @@ async function fillPluginManifest(){
    初始化
    ================================================================ */
 (async function init(){
+  try{
+    if(!sessionStorage.getItem('avengerBooted')){
+      sessionStorage.setItem('avengerBooted','1');
+      const ov=document.createElement('div');ov.className='boot-overlay';
+      ov.innerHTML='<div class="boot-logo">A</div><div class="boot-title">AVENGER V5.2</div><div class="boot-bar"><i></i></div>';
+      document.body.appendChild(ov);
+      setTimeout(()=>ov.classList.add('done'),1250);
+      setTimeout(()=>ov.remove(),1850);
+    }
+  }catch(e){}
   applyChrome();
   tickClock();
   setInterval(()=>{tickClock();applyChrome()},30000);
