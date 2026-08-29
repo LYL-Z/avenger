@@ -73,7 +73,13 @@
 | 🖥️ AI-IDE | CLAUDE.md / AGENTS.md / .cursorrules / copilot-instructions 生成器 |
 | 🎨 UI/UX | 引入 Anime.js 编排（弹簧入场+数字滚动，离线优雅降级）；编辑部式 masthead、发丝线台账行、非对称栅格，摆脱均质卡片布局 |
 
-### v5.2 — 手机直连 · Agent 生态补全 · 训练闭环（当前版本）
+### v6.0「Horizon」— 自研 Agent 内核（开发中，见 [ROADMAP.md](ROADMAP.md)）
+- **avenger_core.py**：纯标准库事件驱动 Agent 内核——事件存储（append-only 可回放）、11 个工作台深度工具（环境/模型库/记忆/文件/shell 白名单）、Plan/Act 双模式、写操作人工审批门、指数退避 LLM 调用；
+- **MCP Client**：stdio JSON-RPC 客户端，任意 MCP 服务器即插即用（与 Claude Desktop 同级互通能力）；
+- **Agent 工作台**（Web）：轨迹瀑布图逐步回放每个 thought/工具调用/耗时，审批卡，会话管理；
+- **avenger_cli.py**：终端入口（对标 codex/aider 体验），`python avenger_cli.py "任务"` 即用。
+
+### v5.2 — 手机直连 · Agent 生态补全 · 训练闭环
 | 方向 | 内容 |
 |------|------|
 | 📱 手机直连 | LAN 模式热切换（0.0.0.0）+ 6 位配对码换令牌协议；手机浏览器获得全部 19 模块操控权；云端模式支持 Tailscale 组网 |

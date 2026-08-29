@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="avenger-token" content="%%AVENGER_TOKEN%%">
-<title>Avenger V5.2 — 全栈开发者全景工作台</title>
+<title>Avenger V6.0 — Local-First AI Agent OS</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23e07856'/%3E%3Ctext x='32' y='44' font-family='Georgia,serif' font-size='36' font-weight='bold' fill='%23fff' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
 <style>
 /* ================================================================
@@ -651,6 +651,24 @@ html.reduce-motion .a-init,html.reduce-auto .a-init{opacity:1;transform:none}
 @keyframes bootPop{from{opacity:0;transform:scale(.6) rotate(-8deg)}60%{transform:scale(1.06)}to{opacity:1;transform:scale(1)}}
 @keyframes bootFade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes bootBar{from{transform:translateX(-120%)}to{transform:translateX(320%)}}
+/* Agent 工作台 */
+.aw-wrap{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start}
+@media(max-width:1000px){.aw-wrap{grid-template-columns:1fr}}
+.aw-tl{position:relative;padding-left:18px;max-height:62vh;overflow:auto}
+.aw-tl::before{content:'';position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:var(--glass-border-soft);border-radius:2px}
+.aw-ev{position:relative;margin-bottom:12px}
+.aw-ev::before{content:'';position:absolute;left:-17px;top:8px;width:8px;height:8px;border-radius:50%;background:var(--text-4)}
+.aw-ev.t-user::before{background:var(--accent)}
+.aw-ev.t-assistant::before{background:var(--info)}
+.aw-ev.t-tool_result::before{background:var(--cyan)}
+.aw-ev.t-error::before{background:var(--danger)}
+.aw-ev.t-approval::before{background:var(--warning)}
+.aw-ev.t-system::before{background:var(--text-4)}
+.aw-tool{border:.5px solid var(--glass-border-soft);border-radius:12px;background:var(--glass-inner);padding:8px 12px}
+.aw-tool .aw-args,.aw-tool .aw-res{font-family:var(--font-mono);font-size:10.5px;color:var(--text-3);white-space:pre-wrap;word-break:break-word;max-height:180px;overflow:auto;margin-top:6px;display:none;border-top:.5px solid var(--border);padding-top:6px}
+.aw-tool.open .aw-args,.aw-tool.open .aw-res{display:block}
+.aw-bar{width:120px;height:3px;border-radius:2px;background:var(--code-bg);overflow:hidden;display:inline-block;vertical-align:middle;margin-left:8px}
+.aw-bar i{display:block;height:100%;background:var(--accent);border-radius:2px}
 .pair-code{font-family:var(--font-mono);font-size:34px;font-weight:700;letter-spacing:.32em;color:var(--accent);background:var(--code-bg);border-radius:12px;padding:8px 18px 8px 24px}
 @media(max-width:720px){
   .ledger-row{display:flex!important;flex-wrap:wrap;gap:6px 10px}
@@ -749,7 +767,7 @@ html.reduce-motion .a-init,html.reduce-auto .a-init{opacity:1;transform:none}
   <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="brand-logo" title="双击折叠侧边栏" ondblclick="toggleSidebarFold()">A</div>
-      <div class="brand-text"><div class="brand-name">Avenger</div><div class="brand-sub">V5.2 · 全景工作台</div></div>
+      <div class="brand-text"><div class="brand-name">Avenger</div><div class="brand-sub">V6.0 · Agent OS</div></div>
       <button type="button" class="btn btn-sm btn-icon" style="margin-left:auto" onclick="toggleSidebarFold()" title="折叠侧边栏" aria-label="折叠侧边栏"><svg viewBox="0 0 24 24"><use href="#i-sidebar"/></svg></button>
     </div>
     <nav class="sidebar-nav" id="sidebarNav">
@@ -761,6 +779,7 @@ html.reduce-motion .a-init,html.reduce-auto .a-init{opacity:1;transform:none}
       <div class="nav-section">工具</div>
       <button type="button" class="nav-item" data-module="toolbox"><svg viewBox="0 0 24 24"><use href="#i-wrench"/></svg><span class="nav-label">开发者工具箱</span><span class="nav-kbd">4</span></button>
       <button type="button" class="nav-item" data-module="studio"><svg viewBox="0 0 24 24"><use href="#i-zap"/></svg><span class="nav-label">AI 工坊</span></button>
+      <button type="button" class="nav-item" data-module="agentws"><svg viewBox="0 0 24 24"><use href="#i-terminal"/></svg><span class="nav-label">Agent 工作台</span><span class="nav-kbd">G</span></button>
       <button type="button" class="nav-item" data-module="agenthut"><svg viewBox="0 0 24 24"><use href="#i-puzzle"/></svg><span class="nav-label">Agent 工坊</span><span class="nav-kbd">A</span></button>
       <button type="button" class="nav-item" data-module="memctx"><svg viewBox="0 0 24 24"><use href="#i-layers"/></svg><span class="nav-label">记忆 · 上下文</span></button>
       <button type="button" class="nav-item" data-module="forge"><svg viewBox="0 0 24 24"><use href="#i-cpu"/></svg><span class="nav-label">模型工坊</span></button>
@@ -1068,7 +1087,7 @@ function toggleEyeCare(){
 if(prefs.get('eyeCare',false)){document.body.classList.add('eye-care');eyeCareOn=true}
 
 /* 模块导航 — 用 token 丢弃过期异步渲染，避免侧边栏“点了没反应” */
-const MODULE_TITLES={dashboard:'总览驾驶舱',python:'Python 环境管理',languages:'多语言运行时',packages:'包管理器',toolbox:'开发者工具箱',studio:'AI 工坊',agenthut:'Agent 工坊 · Skills / MCP / Harness',memctx:'Agent 记忆与代码库上下文',forge:'模型工坊 · 部署量化与训练微调',memo:'开发者备忘录',dojo:'编程练习场',learn:'速查学习',database:'数据库管理',git:'Git 可视化辅助',ports:'端口与进程',hardware:'硬件监控',health:'编程健康护航',plugins:'插件市场',settings:'设置'};
+const MODULE_TITLES={dashboard:'总览驾驶舱',python:'Python 环境管理',languages:'多语言运行时',packages:'包管理器',toolbox:'开发者工具箱',studio:'AI 工坊',agentws:'Agent 工作台 · 自研内核',agenthut:'Agent 工坊 · Skills / MCP / Harness',memctx:'Agent 记忆与代码库上下文',forge:'模型工坊 · 部署量化与训练微调',memo:'开发者备忘录',dojo:'编程练习场',learn:'速查学习',database:'数据库管理',git:'Git 可视化辅助',ports:'端口与进程',hardware:'硬件监控',health:'编程健康护航',plugins:'插件市场',settings:'设置'};
 let currentModule='dashboard',navToken=0;
 function stillOn(name,token){return currentModule===name&&navToken===token}
 function toggleSidebarFold(){
@@ -1111,7 +1130,7 @@ function switchModule(name){
     dashboard:loadDashboard,python:loadPythonModule,languages:loadLanguages,packages:loadPackagesModule,
     hardware:loadHardwareModule,ports:loadPorts,toolbox:initToolbox,health:initHealth,
     plugins:loadPlugins,git:loadGit,database:loadDatabase,settings:loadSettings,
-    studio:loadStudio,agenthut:loadAgentHut,memctx:loadMemCtx,forge:loadForge,memo:loadMemo,dojo:loadDojo,learn:loadLearn
+    studio:loadStudio,agentws:loadAgentWS,agenthut:loadAgentHut,memctx:loadMemCtx,forge:loadForge,memo:loadMemo,dojo:loadDojo,learn:loadLearn
   };
   Avenger._plugins.forEach(p=>{if(p.module===name&&typeof p.render==='function')loaders[name]=p.render});
   const fn=loaders[name];
@@ -1648,6 +1667,7 @@ const cmCommands=[
   {icon:'i-box',label:'包管理器',mod:'packages',shortcut:'Ctrl+3'},
   {icon:'i-wrench',label:'开发者工具箱',mod:'toolbox',shortcut:'Ctrl+4'},
   {icon:'i-zap',label:'AI 工坊',mod:'studio'},
+  {icon:'i-terminal',label:'Agent 工作台 · 自研内核',mod:'agentws'},
   {icon:'i-puzzle',label:'Agent 工坊 · Skills / MCP / Harness',mod:'agenthut',shortcut:'Ctrl+A'},
   {icon:'i-layers',label:'Agent 记忆与上下文',mod:'memctx'},
   {icon:'i-cpu',label:'模型工坊 · 部署量化 / 训练微调',mod:'forge'},
@@ -3934,6 +3954,133 @@ async function dsRegisterNow(){
 async function delDataset(id){await api('/api/train/datasets/delete',{method:'POST',body:{id}});toast('已删除','info');renderDatasets()}
 function useDataset(p){const el=$('tsData');if(el){el.value=p;toast('已在训练配方中引用：'+p,'info')}}
 
+/* ================================================================
+   V6.0 · Agent 工作台（avenger_core 自研内核：轨迹瀑布 + 审批 + MCP）
+   ================================================================ */
+let _awSid='',_awAfter=0,_awTimer=null,_awProviders=[],_awRoles=[['default','全能'],['planner','规划者'],['coder','编码者'],['reviewer','审查者']];
+async function loadAgentWS(token){
+  const [sess,tools,ai]=await Promise.all([api('/api/core/sessions'),api('/api/core/tools'),api('/api/ai/config')]);
+  if(!stillOn('agentws',token))return;
+  _awProviders=ai?.providers||[];
+  renderModule('agentws',`
+    <div class="masthead glass a-init">
+      <div class="kicker">Avenger Core · Event-Driven Agent</div>
+      <h1>Agent 工作台</h1>
+      <p class="lede">自研事件驱动内核：Plan/Act 双模式 · 写操作人工审批门 · MCP 生态即插即用 · <b>轨迹瀑布图</b>逐步回放每个 thought / 工具调用 / 耗时。与 Codex/Claude Code 同源理念，额外打通工作台全部能力。</p>
+      <div class="statline">
+        <div class="st"><b data-count="${(tools?.builtin||[]).length}">0</b><span>内置工具</span></div>
+        <div class="st"><b data-count="${(tools?.mcp||[]).reduce((a,m)=>a+m.tools.length,0)}">0</b><span>MCP 工具</span></div>
+        <div class="st"><b data-count="${(sess?.sessions||[]).length}">0</b><span>会话</span></div>
+      </div>
+    </div>
+    <div class="aw-wrap">
+      <div>
+        <div class="hsec"><span class="no">01</span><h3>新任务</h3></div>
+        <div class="card glass-light" style="padding:12px;display:flex;flex-direction:column;gap:8px">
+          <input id="awTitle" placeholder="任务标题" style="width:100%">
+          <div class="toolbar"><select id="awProv" style="flex:1">${_awProviders.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('')}</select>
+          <input id="awModel" placeholder="模型" style="width:120px" value="${esc((_awProviders[0]||{}).model||'')}"></div>
+          <div class="toolbar"><select id="awRole" style="flex:1">${_awRoles.map(r=>'<option value="'+r[0]+'">'+r[1]+'</option>').join('')}</select>
+          <select id="awMode"><option value="act">Act 执行</option><option value="plan">Plan 规划</option></select></div>
+          <input id="awDir" placeholder="工作目录（可选，如 D:\\project）" class="mono" style="width:100%">
+          <label class="checkbox"><input type="checkbox" id="awAuto"> 自动批准写操作（危险）</label>
+          <textarea id="awFirst" placeholder="描述任务…（Enter 发起）" style="width:100%;height:64px"></textarea>
+          <button class="btn btn-primary btn-sm" onclick="awNewSession()">${icon('i-zap')} 启动 Agent</button>
+        </div>
+        <div class="hsec"><span class="no">02</span><h3>MCP 服务器</h3><div class="rule"></div></div>
+        <div class="card glass-light" style="padding:12px;display:flex;flex-direction:column;gap:6px">
+          <div class="toolbar"><input id="awMcpName" placeholder="名称" style="width:80px"><input id="awMcpCmd" placeholder="命令，如 python avenger_mcp_server.py" style="flex:1;min-width:120px" class="mono"><button class="btn btn-sm" onclick="awMcpAdd()">挂接</button></div>
+          <div id="awMcpList" style="font-size:11.5px;color:var(--text-3)">${(tools?.mcp||[]).map(m=>'● <b class="mono">'+esc(m.name)+'</b> — '+m.tools.length+' 工具 <button class="btn btn-sm btn-ghost" onclick="awMcpStop(\''+esc(m.name)+'\')">'+icon('i-x')+'</button>').join('<br>')||'未挂接。任何 stdio MCP 服务器均可即插即用。'}</div>
+        </div>
+        <div class="hsec"><span class="no">03</span><h3>会话</h3><div class="rule"></div></div>
+        <div class="ledger" style="max-height:30vh;overflow:auto">${(sess?.sessions||[]).map(x=>'<div class="ledger-row" style="grid-template-columns:1fr auto;cursor:pointer'+(_awSid===x.id?';background:var(--accent-s)':'')+'" onclick="awOpen(\''+x.id+'\')"><div><strong style="font-size:12px">'+esc(x.title)+'</strong><div style="font-size:10px;color:var(--text-4)">'+esc(x.created)+' · '+x.steps+' 步</div></div><span class="badge '+(x.status==='running'?'badge-info':x.status==='waiting'?'badge-warning':x.status==='done'?'badge-success':'badge-neutral')+'" style="font-size:9px">'+esc(x.status)+'</span></div>').join('')||'<div class="empty-state">还没有会话</div>'}</div>
+      </div>
+      <div>
+        <div class="hsec"><span class="no">04</span><h3>执行轨迹</h3><div class="rule"></div>
+          <span id="awStatus" class="badge badge-neutral">未选择会话</span>
+          <button class="btn btn-sm btn-danger" onclick="awStop()" style="display:none" id="awStopBtn">${icon('i-x')} 停止</button></div>
+        <div class="aw-tl" id="awTimeline"><div class="empty-state">从左侧启动新任务，或打开历史会话查看可回放轨迹</div></div>
+        <div class="chat-input" style="margin-top:12px">
+          <textarea id="awInput" placeholder="追加指令…（Enter 发送，Shift+Enter 换行）" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();awSend()}"></textarea>
+          <button class="btn btn-primary" onclick="awSend()">发送</button>
+        </div>
+      </div>
+    </div>`,token);
+  if(!stillOn('agentws',token))return;
+  if(_awSid)awOpen(_awSid);
+  choreo($('mod-agentws'));
+}
+async function awNewSession(){
+  const body={title:$('awTitle').value||($('awFirst').value||'新任务').slice(0,40),provider:$('awProv').value,model:$('awModel').value.trim(),role:$('awRole').value,mode:$('awMode').value,auto_approve:$('awAuto').checked,workdir:$('awDir').value.trim()||undefined,first_message:$('awFirst').value.trim()||undefined};
+  const d=await api('/api/core/session',{method:'POST',body});
+  if(d?.ok){_awSid=d.id;_awAfter=0;toast('Agent 已启动','success');loadAgentWS(navToken)}
+  else toast(d?.error||'启动失败','error');
+}
+async function awOpen(id){
+  _awSid=id;_awAfter=0;
+  clearTimeout(_awTimer);
+  awPoll();
+}
+async function awPoll(){
+  if(!_awSid||currentModule!=='agentws')return;
+  const d=await api('/api/core/session?id='+_awSid+'&after='+_awAfter);
+  if(d?.session){
+    const evs=d.events||[];
+    const tl=$('awTimeline');
+    if(evs.length&&tl){
+      if(_awAfter===0)tl.innerHTML='';
+      for(const e of evs){tl.insertAdjacentHTML('beforeend',awEvHtml(e));_awAfter=e.seq}
+      tl.scrollTop=tl.scrollHeight;
+      const st=$('awStatus');
+      if(st){st.textContent=d.session.status;st.className='badge '+(d.session.status==='running'?'badge-info':d.session.status==='waiting'?'badge-warning':d.session.status==='done'?'badge-success':d.session.status==='error'?'badge-danger':'badge-neutral')}
+      const sb=$('awStopBtn');if(sb)sb.style.display=(d.session.status==='running')?'inline-flex':'none';
+    }
+    clearTimeout(_awTimer);
+    if(d.session.status==='running'||d.session.status==='waiting')_awTimer=setTimeout(awPoll,1200);
+  }
+}
+function awEvHtml(e){
+  const d=e.data||{};
+  if(e.type==='user')return '<div class="aw-ev t-user"><div class="bubble user" style="max-width:92%">'+esc(d.text||'')+'</div></div>';
+  if(e.type==='assistant'){
+    const calls=(d.tool_calls||[]).map(c=>'<div class="aw-tool" onclick="this.classList.toggle(\'open\')"><b class="mono" style="font-size:11px">'+icon('i-wrench')+' '+esc(c.name)+'</b> <span style="font-size:10px;color:var(--text-4)">点击展开参数</span><div class="aw-args">'+esc(JSON.stringify(c.args||{},null,1))+'</div></div>').join('');
+    return '<div class="aw-ev t-assistant">'+(d.content?'<div class="bubble ai md-body" style="max-width:92%">'+mdLite(d.content)+'</div>':'')+calls+'</div>';
+  }
+  if(e.type==='tool_result'){
+    const ok=!(d.result&&d.result.error);
+    return '<div class="aw-ev t-tool_result"><div class="aw-tool open" onclick="if(event.target.tagName!==\'PRE\')this.classList.toggle(\'open\')"><b class="mono" style="font-size:11px;color:'+(ok?'var(--cyan)':'var(--danger)')+'">'+icon('i-activity')+' '+esc(d.name||'')+'</b><span class="aw-bar" title="'+(d.ms||0)+'ms"><i style="width:'+Math.min(100,Math.round((d.ms||0)/30))+'%"></i></span> <span class="mono" style="font-size:10px;color:var(--text-4)">'+(d.ms||0)+'ms</span><div class="aw-res">'+esc(typeof d.result==='string'?d.result:JSON.stringify(d.result,null,1)).slice(0,3000)+'</div></div></div>';
+  }
+  if(e.type==='approval'){
+    return '<div class="aw-ev t-approval"><div class="card glass-light" style="padding:12px;border-color:var(--warning)"><b style="color:var(--warning)">'+icon('i-alert')+' 等待审批：'+esc(d.name)+'</b><pre class="mono" style="font-size:10.5px;margin-top:6px;white-space:pre-wrap;max-height:120px;overflow:auto">'+esc(JSON.stringify(d.args||{},null,1))+'</pre><div class="toolbar" style="margin-top:8px"><button class="btn btn-sm btn-success" onclick="awApprove(true)">批准执行</button><button class="btn btn-sm btn-danger" onclick="awApprove(false)">拒绝</button></div></div></div>';
+  }
+  if(e.type==='error')return '<div class="aw-ev t-error"><span class="badge badge-danger">'+esc(d.text||'')+'</span></div>';
+  return '<div class="aw-ev t-system"><span style="font-size:11px;color:var(--text-4)">'+esc(d.text||'')+'</span></div>';
+}
+async function awSend(){
+  const t=($('awInput')||{}).value||'';
+  if(!t.trim()||!_awSid)return;
+  $('awInput').value='';
+  await api('/api/core/send',{method:'POST',body:{id:_awSid,message:t}});
+  awPoll();
+}
+async function awApprove(yes){
+  await api('/api/core/approve',{method:'POST',body:{id:_awSid,approve:yes}});
+  awPoll();
+}
+async function awStop(){
+  await api('/api/core/stop',{method:'POST',body:{id:_awSid}});
+  awPoll();
+}
+async function awMcpAdd(){
+  const d=await api('/api/core/mcp/start',{method:'POST',body:{name:$('awMcpName').value||'srv',command:$('awMcpCmd').value}});
+  if(d?.ok){toast('MCP 已挂接 · '+d.tools.length+' 工具','success');loadAgentWS(navToken)}
+  else toast(d?.error||'挂接失败','error');
+}
+async function awMcpStop(name){
+  await api('/api/core/mcp/stop',{method:'POST',body:{name}});
+  loadAgentWS(navToken);
+}
+
 let _memoQ='',_memoTag='all',_memoPreview=false;
 function memoTagList(){
   const set=new Set();
@@ -4577,7 +4724,7 @@ async function fillPluginManifest(){
     if(!sessionStorage.getItem('avengerBooted')){
       sessionStorage.setItem('avengerBooted','1');
       const ov=document.createElement('div');ov.className='boot-overlay';
-      ov.innerHTML='<div class="boot-logo">A</div><div class="boot-title">AVENGER V5.2</div><div class="boot-bar"><i></i></div>';
+      ov.innerHTML='<div class="boot-logo">A</div><div class="boot-title">AVENGER V6.0</div><div class="boot-bar"><i></i></div>';
       document.body.appendChild(ov);
       setTimeout(()=>ov.classList.add('done'),1250);
       setTimeout(()=>ov.remove(),1850);

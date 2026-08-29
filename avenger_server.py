@@ -44,6 +44,11 @@ try:
 except ImportError:
     agentmod = None
 
+try:
+    import avenger_core as coremod
+except ImportError:
+    coremod = None
+
 # Windows 专属模块
 try:
     import winreg
@@ -2383,6 +2388,29 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"error": "agent 模块缺失"}, 500)
             return
 
+        if path == "/api/core/sessions":
+            self._send_json({"sessions": coremod.STORE.sessions()} if coremod else {"error": "core 模块缺失"}, 200 if coremod else 500)
+            return
+
+        if path == "/api/core/session":
+            if coremod:
+                sid = qs.get("id", [""])[0]
+                after = int(qs.get("after", ["0"])[0])
+                self._send_json({"session": coremod.STORE.session(sid), "events": coremod.STORE.events(sid, after)})
+            else:
+                self._send_json({"error": "core 模块缺失"}, 500)
+            return
+
+        if path == "/api/core/tools":
+            if coremod:
+                self._send_json({"builtin": [{"name": n, "desc": t["schema"]["function"]["description"],
+                                              "mutating": n in coremod.MUTATING}
+                                             for n, t in coremod.TOOLS.items()],
+                                 "mcp": coremod.mcp_status()})
+            else:
+                self._send_json({"error": "core 模块缺失"}, 500)
+            return
+
         if path == "/api/agent/models":
             if agentmod:
                 try:
@@ -2787,6 +2815,12 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             "/api/train/clean": self._handle_train_clean,
             "/api/agent/ide/extension": self._handle_ide_extension,
             "/api/lan/enable": self._handle_lan_enable,
+            "/api/core/session": self._handle_core_session,
+            "/api/core/send": self._handle_core_send,
+            "/api/core/approve": self._handle_core_approve,
+            "/api/core/stop": self._handle_core_stop,
+            "/api/core/mcp/start": self._handle_core_mcp_start,
+            "/api/core/mcp/stop": self._handle_core_mcp_stop,
             "/api/train/script": self._handle_train_script,
             "/api/agent/ide": self._handle_ide_generate,
         }
@@ -3490,6 +3524,55 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
         name = re.sub(r"[^a-zA-Z0-9._-]+", "-", str((body or {}).get("project") or "my-project"))[:40]
         self._send_json(agentmod.ide_extension(name or "my-project"))
 
+    def _handle_core_session(self, body):
+        if not coremod:
+            self._send_json({"ok": False, "error": "core 模块缺失"}, 500)
+            return
+        b = body or {}
+        r = coremod.core_session_create(BASE_DIR, b)
+        first = str(b.get("first_message") or "").strip()
+        if r.get("ok") and first:
+            r2 = coremod.core_send(BASE_DIR, r["id"], first, b.get("workdir"))
+            r["resumed"] = r2.get("resumed")
+        self._send_json(r)
+
+    def _handle_core_send(self, body):
+        if not coremod:
+            self._send_json({"ok": False, "error": "core 模块缺失"}, 500)
+            return
+        b = body or {}
+        self._send_json(coremod.core_send(BASE_DIR, str(b.get("id") or ""), str(b.get("message") or ""), b.get("workdir")))
+
+    def _handle_core_approve(self, body):
+        if not coremod:
+            self._send_json({"ok": False, "error": "core 模块缺失"}, 500)
+            return
+        b = body or {}
+        self._send_json(coremod.core_approve(BASE_DIR, str(b.get("id") or ""), bool(b.get("approve"))))
+
+    def _handle_core_stop(self, body):
+        if not coremod:
+            self._send_json({"ok": False, "error": "core 模块缺失"}, 500)
+            return
+        self._send_json(coremod.core_stop(str((body or {}).get("id") or "")))
+
+    def _handle_core_mcp_start(self, body):
+        if not coremod:
+            self._send_json({"ok": False, "error": "core 模块缺失"}, 500)
+            return
+        b = body or {}
+        cmd = str(b.get("command") or "").strip()
+        if not cmd or len(cmd) > 300:
+            self._send_json({"ok": False, "error": "命令不合法"}, 400)
+            return
+        self._send_json(coremod.mcp_start(str(b.get("name") or "srv"), cmd))
+
+    def _handle_core_mcp_stop(self, body):
+        if not coremod:
+            self._send_json({"ok": False, "error": "core 模块缺失"}, 500)
+            return
+        self._send_json(coremod.mcp_stop(str((body or {}).get("name") or "")))
+
     def _handle_lan_enable(self, body):
         on = bool((body or {}).get("on"))
         _restart_http(on)
@@ -3870,7 +3953,7 @@ def main():
     _scan_status["message"] = "启动扫描..."
     _scan_status["progress"] = 1
     print("=" * 56)
-    print("   Avenger V5.0 - 全栈开发者全景工作台")
+    print("   Avenger V6.0 - Local-First AI Agent OS")
     print("   服务地址: http://%s:%s" % (HOST, PORT))
     print("   启动时间: %s" % datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     print("   关掉浏览器后由托管小窗保活；关掉小窗即停止服务")
