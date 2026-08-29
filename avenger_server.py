@@ -2388,6 +2388,14 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"error": "agent 模块缺失"}, 500)
             return
 
+        if path == "/api/pipe/templates":
+            self._send_json({"templates": coremod.pipe_templates()} if coremod else {"error": "core 模块缺失"}, 200 if coremod else 500)
+            return
+
+        if path == "/api/pipe/status":
+            self._send_json(coremod.pipe_status() if coremod else {"error": "core 模块缺失"}, 200 if coremod else 500)
+            return
+
         if path == "/api/gen/topics":
             self._send_json({"topics": agentmod.gen_topics(qs.get("domain", [""])[0])} if agentmod else {"error": "agent 模块缺失"}, 200 if agentmod else 500)
             return
@@ -2844,6 +2852,7 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             "/api/gh/gist-load": self._handle_gh_gist_load,
             "/api/gh/issue": self._handle_gh_issue,
             "/api/gen/run": self._handle_gen_run,
+            "/api/pipe/run": self._handle_pipe_run,
             "/api/train/script": self._handle_train_script,
             "/api/agent/ide": self._handle_ide_generate,
         }
@@ -3546,6 +3555,16 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             return
         name = re.sub(r"[^a-zA-Z0-9._-]+", "-", str((body or {}).get("project") or "my-project"))[:40]
         self._send_json(agentmod.ide_extension(name or "my-project"))
+
+    def _handle_pipe_run(self, body):
+        if not coremod:
+            self._send_json({"ok": False, "error": "core 模块缺失"}, 500)
+            return
+        b = body or {}
+        if b.get("workdir") and (path_is_blocked(str(b.get("workdir"))) or not os.path.isdir(str(b.get("workdir")))):
+            self._send_json({"ok": False, "error": "工作目录不可用"}, 400)
+            return
+        self._send_json(coremod.pipe_run(BASE_DIR, b))
 
     def _handle_gen_run(self, body):
         if not agentmod:

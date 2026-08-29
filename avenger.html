@@ -779,6 +779,7 @@ html.reduce-motion .a-init,html.reduce-auto .a-init{opacity:1;transform:none}
       <div class="nav-section">工具</div>
       <button type="button" class="nav-item" data-module="toolbox"><svg viewBox="0 0 24 24"><use href="#i-wrench"/></svg><span class="nav-label">开发者工具箱</span><span class="nav-kbd">4</span></button>
       <button type="button" class="nav-item" data-module="studio"><svg viewBox="0 0 24 24"><use href="#i-zap"/></svg><span class="nav-label">AI 工坊</span></button>
+      <button type="button" class="nav-item" data-module="pipe"><svg viewBox="0 0 24 24"><use href="#i-network"/></svg><span class="nav-label">多 Agent 流水线</span></button>
       <button type="button" class="nav-item" data-module="agentws"><svg viewBox="0 0 24 24"><use href="#i-terminal"/></svg><span class="nav-label">Agent 工作台</span><span class="nav-kbd">G</span></button>
       <button type="button" class="nav-item" data-module="agenthut"><svg viewBox="0 0 24 24"><use href="#i-puzzle"/></svg><span class="nav-label">Agent 工坊</span><span class="nav-kbd">A</span></button>
       <button type="button" class="nav-item" data-module="memctx"><svg viewBox="0 0 24 24"><use href="#i-layers"/></svg><span class="nav-label">记忆 · 上下文</span></button>
@@ -1088,7 +1089,7 @@ function toggleEyeCare(){
 if(prefs.get('eyeCare',false)){document.body.classList.add('eye-care');eyeCareOn=true}
 
 /* 模块导航 — 用 token 丢弃过期异步渲染，避免侧边栏“点了没反应” */
-const MODULE_TITLES={dashboard:'总览驾驶舱',python:'Python 环境管理',languages:'多语言运行时',packages:'包管理器',toolbox:'开发者工具箱',studio:'AI 工坊',agentws:'Agent 工作台 · 自研内核',agenthut:'Agent 工坊 · Skills / MCP / Harness',memctx:'Agent 记忆与代码库上下文',forge:'模型工坊 · 部署量化与训练微调',memo:'开发者备忘录',labs:'科学实验室 · 数理化生历',dojo:'编程练习场',learn:'速查学习',database:'数据库管理',git:'Git 可视化辅助',ports:'端口与进程',hardware:'硬件监控',health:'编程健康护航',plugins:'插件市场',settings:'设置'};
+const MODULE_TITLES={dashboard:'总览驾驶舱',python:'Python 环境管理',languages:'多语言运行时',packages:'包管理器',toolbox:'开发者工具箱',studio:'AI 工坊',agentws:'Agent 工作台 · 自研内核',pipe:'多 Agent 流水线 · V7 预览',agenthut:'Agent 工坊 · Skills / MCP / Harness',memctx:'Agent 记忆与代码库上下文',forge:'模型工坊 · 部署量化与训练微调',memo:'开发者备忘录',labs:'科学实验室 · 数理化生历',dojo:'编程练习场',learn:'速查学习',database:'数据库管理',git:'Git 可视化辅助',ports:'端口与进程',hardware:'硬件监控',health:'编程健康护航',plugins:'插件市场',settings:'设置'};
 let currentModule='dashboard',navToken=0;
 function stillOn(name,token){return currentModule===name&&navToken===token}
 function toggleSidebarFold(){
@@ -1131,7 +1132,7 @@ function switchModule(name){
     dashboard:loadDashboard,python:loadPythonModule,languages:loadLanguages,packages:loadPackagesModule,
     hardware:loadHardwareModule,ports:loadPorts,toolbox:initToolbox,health:initHealth,
     plugins:loadPlugins,git:loadGit,database:loadDatabase,settings:loadSettings,
-    studio:loadStudio,agentws:loadAgentWS,agenthut:loadAgentHut,memctx:loadMemCtx,forge:loadForge,memo:loadMemo,labs:loadLabs,dojo:loadDojo,learn:loadLearn
+    studio:loadStudio,agentws:loadAgentWS,pipe:loadPipe,agenthut:loadAgentHut,memctx:loadMemCtx,forge:loadForge,memo:loadMemo,labs:loadLabs,dojo:loadDojo,learn:loadLearn
   };
   Avenger._plugins.forEach(p=>{if(p.module===name&&typeof p.render==='function')loaders[name]=p.render});
   const fn=loaders[name];
@@ -1759,6 +1760,7 @@ const cmCommands=[
   {icon:'i-box',label:'包管理器',mod:'packages',shortcut:'Ctrl+3'},
   {icon:'i-wrench',label:'开发者工具箱',mod:'toolbox',shortcut:'Ctrl+4'},
   {icon:'i-zap',label:'AI 工坊',mod:'studio'},
+  {icon:'i-network',label:'多 Agent 流水线',mod:'pipe'},
   {icon:'i-terminal',label:'Agent 工作台 · 自研内核',mod:'agentws'},
   {icon:'i-puzzle',label:'Agent 工坊 · Skills / MCP / Harness',mod:'agenthut',shortcut:'Ctrl+A'},
   {icon:'i-layers',label:'Agent 记忆与上下文',mod:'memctx'},
@@ -4645,6 +4647,128 @@ function tlDraw(text,id){
     ctx.fillText(String(it[0]),Math.min(x+4,W-60),up?H/2-38:H/2+42);
   });
 }
+
+/* ================================================================
+   V7.0 预览 · 多 Agent 流水线编排（SVG 画布）
+   ================================================================ */
+let _pipeTimer=null,_pipeTpl='pcr',_pipeStages=[];
+async function loadPipe(token){
+  const t=await api('/api/pipe/templates');
+  if(!stillOn('pipe',token))return;
+  const tpl=(t&&t.templates)||[];
+  window._pipeTpls=tpl;
+  if(!_pipeStages.length&&tpl.length)_pipeStages=JSON.parse(JSON.stringify(tpl[0].stages));
+  renderModule('pipe',`
+    <div class="masthead glass a-init">
+      <div class="kicker">V7 Preview · Multi-Agent Pipeline</div>
+      <h1>多 Agent 流水线</h1>
+      <p class="lede">把不同角色的 Agent（规划者/编码者/审查者/全能）串成级联工作流：上一阶段的产出自动注入下一阶段上下文。每个阶段都是一条<b>独立可回放的 Agent 会话</b>（点击节点跳转轨迹）。模板可自由增删改阶段。</p>
+    </div>
+    <div class="split-64">
+      <div>
+        <div class="hsec"><span class="no">01</span><h3>模板</h3><div class="rule"></div></div>
+        <div class="tool-grid" style="grid-template-columns:1fr;gap:8px">
+          ${tpl.map(x=>'<button type="button" class="tool-card glass-light '+(x.id===_pipeTpl?'on':'')+'" style="border-color:'+(x.id===_pipeTpl?'var(--accent)':'')+'" onclick="pipeUseTpl(\''+x.id+'\')"><div class="tool-card-name">'+esc(x.name)+'</div><div class="tool-card-desc">'+esc(x.desc)+'</div></button>').join('')}
+        </div>
+        <div class="hsec"><span class="no">02</span><h3>阶段编排</h3><div class="rule"></div>
+          <button class="btn btn-sm" onclick="pipeAddStage()">${icon('i-plus')} 加阶段</button></div>
+        <div id="pipeStageEd"></div>
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+          <input id="pipeTask" placeholder="总体任务描述" style="width:100%">
+          <input id="pipeDir" placeholder="工作目录（可选）" class="mono" style="width:100%">
+          <button class="btn btn-primary" onclick="pipeRun()">${icon('i-zap')} 启动流水线</button>
+        </div>
+      </div>
+      <div>
+        <div class="hsec"><span class="no">03</span><h3>编排画布</h3><div class="rule"></div><span id="pipeState" class="badge badge-neutral">待运行</span></div>
+        <div id="pipeCanvas" class="card glass-light" style="padding:12px;min-height:150px"></div>
+        <div class="hsec"><span class="no">04</span><h3>阶段产出</h3><div class="rule"></div></div>
+        <div id="pipeOut" style="font-size:12px;color:var(--text-3)">运行后此处显示各阶段最终产出</div>
+      </div>
+    </div>`,token);
+  if(!stillOn('pipe',token))return;
+  pipeDrawEditor();pipeDrawCanvas();pipePoll();
+  choreo($('mod-pipe'));
+}
+function pipeUseTpl(id){
+  _pipeTpl=id;
+  const t=(window._pipeTpls||[]).find(x=>x.id===id);
+  if(t)_pipeStages=JSON.parse(JSON.stringify(t.stages));
+  loadPipe(navToken);
+}
+function pipeAddStage(){_pipeStages.push({role:'coder',title:'新阶段',prompt:'完成你的职责。'});pipeDrawEditor();pipeDrawCanvas()}
+function pipeDrawEditor(){
+  const box=$('pipeStageEd');if(!box)return;
+  box.innerHTML=_pipeStages.map((st,i)=>'<div class="card glass-light" style="padding:10px;margin-bottom:8px">'
+    +'<div class="toolbar" style="margin-bottom:6px"><select data-i="'+i+'" data-f="role" onchange="pipeStageSet(this)" style="width:110px">'
+    +[['default','全能'],['planner','规划者'],['coder','编码者'],['reviewer','审查者']].map(r=>'<option value="'+r[0]+'" '+(st.role===r[0]?'selected':'')+'>'+r[1]+'</option>').join('')
+    +'</select><input data-i="'+i+'" data-f="title" value="'+esc(st.title)+'" onchange="pipeStageSet(this)" style="flex:1" placeholder="阶段名">'
+    +(_pipeStages.length>1?'<button class="btn btn-sm btn-ghost btn-icon" onclick="pipeDelStage('+i+')">'+icon('i-trash')+'</button>':'')+'</div>'
+    +'<textarea data-i="'+i+'" data-f="prompt" onchange="pipeStageSet(this)" style="width:100%;height:52px;font-size:12px">'+esc(st.prompt)+'</textarea></div>').join('');
+}
+function pipeStageSet(el){
+  const i=+el.dataset.i,f=el.dataset.f;
+  if(_pipeStages[i])_pipeStages[i][f]=el.value;
+  pipeDrawCanvas();
+}
+function pipeDelStage(i){_pipeStages.splice(i,1);pipeDrawEditor();pipeDrawCanvas()}
+const PIPE_COLORS={pending:'#8a93a3',running:'#e07856',done:'#5ea87a',blocked:'#d4a040',error:'#d06058'};
+function pipeDrawCanvas(){
+  const box=$('pipeCanvas');if(!box)return;
+  const st=window._pipeStatus||{stages:_pipeStages.map(x=>({...x,status:'pending'}))};
+  const stages=st.stages||[];
+  const W=Math.max(300,stages.length*170+40),H=110;
+  let nodes='',arrows='';
+  stages.forEach((sg,i)=>{
+    const x=20+i*170,y=30,col=PIPE_COLORS[sg.status]||'#8a93a3';
+    nodes+='<g style="cursor:pointer" onclick="pipeShowOut('+i+')"><rect x="'+x+'" y="'+y+'" width="140" height="54" rx="12" fill="'+col+'22" stroke="'+col+'" stroke-width="1.5"/>'
+      +'<text x="'+(x+70)+'" y="'+(y+22)+'" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">'+esc(sg.title||sg.role)+'</text>'
+      +'<text x="'+(x+70)+'" y="'+(y+40)+'" text-anchor="middle" font-size="10" fill="'+col+'">'+(sg.status==='running'?'● 运行中':sg.status==='done'?'✓ 完成':sg.status==='blocked'?'⚠ 审批':sg.status==='error'?'✗ 出错':'待执行')+'</text></g>';
+    if(i<stages.length-1)arrows+='<line x1="'+(x+140)+'" y1="'+(y+27)+'" x2="'+(x+170)+'" y2="'+(y+27)+'" stroke="currentColor" stroke-opacity=".35" stroke-width="2" marker-end="url(#aw)"/>';
+  });
+  box.innerHTML='<svg id="pipeSvg" width="100%" viewBox="0 0 '+W+' '+H+'" style="color:var(--text-2)"><defs><marker id="aw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="currentColor" fill-opacity=".4"/></marker></defs>'+arrows+nodes+'</svg>';
+}
+function pipeShowOut(i){
+  const st=window._pipeStatus||{};
+  const sg=(st.stages||[])[i];if(!sg)return;
+  showModal('<div class="modal-title">'+esc(sg.title||'阶段产出')+' <span class="badge badge-neutral">'+esc(sg.status||'')+'</span></div><div class="modal-body md-body">'
+    +(sg.output?mdLite(sg.output):'<span style="color:var(--text-3)">尚未产出</span>')
+    +(sg.sid?'<div style="margin-top:10px"><button class="btn btn-sm" onclick="closeModal();switchModule(\'agentws\');awOpen(\''+sg.sid+'\')">'+icon('i-terminal')+' 查看完整轨迹</button></div>':'')
+    +'</div><div class="modal-footer"><button class="btn" onclick="closeModal()">关闭</button></div>');
+}
+async function pipeRun(){
+  const task=($('pipeTask')||{}).value||'';
+  if(!task.trim()){toast('填写总体任务','error');return}
+  const d=await api('/api/pipe/run',{method:'POST',body:{template:_pipeTpl,stages:_pipeStages,task,workdir:($('pipeDir')||{}).value||'.'}});
+  if(d?.ok){toast('流水线已启动 · '+d.stages+' 阶段','success');clearTimeout(_pipeTimer);pipePoll()}
+  else toast(d?.error||'启动失败','error');
+}
+async function pipePoll(){
+  if(currentModule!=='pipe')return;
+  const d=await api('/api/pipe/status');
+  if(d){
+    window._pipeStatus=d;
+    const badge=$('pipeState');
+    if(badge){badge.textContent=d.running?('运行中 '+d.done+'/'+(d.stages||[]).length+(d.title?' · '+d.title:'')):(d.error?('出错: '+d.error):((d.stages||[]).length?'上次完成':'待运行'));
+      badge.className='badge '+(d.running?'badge-info':d.error?'badge-danger':'badge-neutral')}
+    pipeDrawCanvas();
+    if(!d.running&&d.stages&&d.stages.some(x=>x.output)){
+      const box=$('pipeOut');
+      if(box)box.innerHTML=d.stages.map((sg,i)=>'<div class="card glass-light" style="padding:12px;margin-bottom:10px">'
+        +'<div class="toolbar" style="justify-content:space-between"><b style="font-family:var(--font-serif)">'+(i+1)+'. '+esc(sg.title)+'</b>'
+        +'<span class="badge '+(sg.status==='done'?'badge-success':'badge-warning')+'" style="font-size:9px">'+esc(sg.status)+'</span></div>'
+        +'<div class="md-body" style="margin-top:8px;max-height:200px;overflow:auto">'+(sg.output?mdLite(sg.output):'<span style="color:var(--text-4)">无</span>')+'</div>'
+        +(sg.sid?'<button class="btn btn-sm" style="margin-top:6px" onclick="switchModule(\'agentws\');awOpen(\''+sg.sid+'\')">'+icon('i-terminal')+' 轨迹</button>':'')
+        +'</div>').join('');
+    }
+    clearTimeout(_pipeTimer);
+    if(d.running)_pipeTimer=setTimeout(pipePoll,1600);
+  }
+  _pipeTimer=setTimeout(pipePoll,5000);
+}
+
+'' + anchor
+s = s.replace(anchor, v7, 1)
 
 let _memoQ='',_memoTag='all',_memoPreview=false;
 function memoTagList(){

@@ -34,6 +34,10 @@ class EventStore:
             conn.execute("CREATE TABLE IF NOT EXISTS agent_sessions("
                          "id TEXT PRIMARY KEY, title TEXT, provider TEXT, model TEXT, role TEXT,"
                          "mode TEXT, status TEXT, auto_approve INTEGER, created TEXT, steps INTEGER DEFAULT 0)")
+            try:
+                conn.execute("ALTER TABLE agent_sessions ADD COLUMN workdir TEXT DEFAULT ''")
+            except Exception:
+                pass
             conn.execute("CREATE TABLE IF NOT EXISTS agent_events("
                          "seq INTEGER PRIMARY KEY AUTOINCREMENT, session_id TEXT, type TEXT,"
                          "data TEXT, ts TEXT)")
@@ -584,3 +588,132 @@ def core_stop(sid):
     PENDING.pop(sid, None)
     STORE.update(sid, status="stopped")
     return {"ok": True}
+
+
+# ============================================================
+# 16. V7.0 多 Agent 流水线（Planner→Coder→Reviewer 级联编排）
+# ============================================================
+
+PIPE_TEMPLATES = [
+    {"id": "pcr", "name": "规划→编码→审查", "desc": "经典三段式：先产出计划，再逐步实现，最后分级审查",
+     "stages": [{"role": "planner", "title": "规划阶段", "prompt": "调研并给出实现计划：目标拆解、涉及文件、风险点。"},
+                {"role": "coder", "title": "编码阶段", "prompt": "严格按上一阶段的计划实现代码改动，小步修改并说明理由。"},
+                {"role": "reviewer", "title": "审查阶段", "prompt": "审查上一阶段产出的改动：按 P0-P3 分级给出问题与修法；无问题则明确 PASS。"}]},
+    {"id": "research", "name": "调研→决策", "desc": "深度调研后输出结构化决策建议",
+     "stages": [{"role": "planner", "title": "调研阶段", "prompt": "全面调研当前任务的技术背景与可选方案。"},
+                {"role": "reviewer", "title": "决策阶段", "prompt": "基于调研结论，从权衡角度给出 2-3 个方案与最终推荐。"}]},
+    {"id": "fix", "name": "诊断→修复→验证", "desc": "定位问题、实施修复、回归验证",
+     "stages": [{"role": "planner", "title": "诊断阶段", "prompt": "定位问题的根因，列出证据与影响面。"},
+                {"role": "coder", "title": "修复阶段", "prompt": "针对诊断结论实施最小化修复。"},
+                {"role": "reviewer", "title": "验证阶段", "prompt": "验证修复是否完整：检查边界条件与回归风险。"}]},
+]
+
+_PIPE_STATE = {"running": False, "pid": "", "title": "", "stages": [], "error": ""}
+_PIPE_LOCK = __import__("threading").Lock()
+
+
+def pipe_templates():
+    return PIPE_TEMPLATES
+
+
+def pipe_status():
+    with _PIPE_LOCK:
+        return json.loads(json.dumps(_PIPE_STATE))
+
+
+def _pipe_worker(base_dir, pid, title, stages, auto_approve, workdir):
+    try:
+        handoff = ""
+        for i, st in enumerate(stages):
+            with _PIPE_LOCK:
+                _PIPE_STATE["stages"][i]["status"] = "running"
+                _PIPE_STATE["stages"][i]["sid"] = ""
+            prompt = st["prompt"]
+            if handoff:
+                prompt += (chr(10)*2 + "[上一阶段输出摘录]" + chr(10)) + handoff[:3000]
+            sess = core_session_create(base_dir, {
+                "title": "%s · %s" % (title, st["title"]), "role": st["role"],
+                "mode": "act", "auto_approve": auto_approve, "workdir": workdir,
+                "first_message": prompt})
+            if not sess.get("ok"):
+                raise RuntimeError(sess.get("error", "会话创建失败"))
+            sid = sess["id"]
+            sent = core_send(base_dir, sid, prompt, workdir)
+            if not sent.get("ok"):
+                raise RuntimeError(sent.get("error", "子代理启动失败"))
+            with _PIPE_LOCK:
+                _PIPE_STATE["stages"][i]["sid"] = sid
+            # 等待该子代理结束（人工审批视为阻塞点）
+            deadline = time.time() + 900
+            while time.time() < deadline:
+                s = STORE.session(sid) or {}
+                status = s.get("status")
+                if status == "waiting":
+                    with _PIPE_LOCK:
+                        _PIPE_STATE["stages"][i]["status"] = "blocked"
+                    # 自动放行一次审批（流水线模式默认信任规划，写操作仍由内核会话内审批）
+                    core_approve(base_dir, sid, True)
+                    with _PIPE_LOCK:
+                        _PIPE_STATE["stages"][i]["status"] = "running"
+                    continue
+                if status in ("done", "stopped", "error"):
+                    break
+                time.sleep(1.2)
+            evs = STORE.events(sid)
+            outs = [e["data"].get("content", "") for e in evs if e["type"] == "assistant"]
+            out = (outs[-1] if outs else "")
+            tools_used = sum(1 for e in evs if e["type"] == "tool_result")
+            final_status = "done"
+            sess_now = STORE.session(sid) or {}
+            if sess_now.get("status") == "error":
+                final_status = "error"
+            elif not out:
+                final_status = "empty"
+            with _PIPE_LOCK:
+                _PIPE_STATE["stages"][i].update({"status": final_status, "output": out[:4000],
+                                                 "sid": sid, "steps": len(evs), "tools": tools_used})
+            handoff = out
+            with _PIPE_LOCK:
+                _PIPE_STATE["done"] = i + 1
+        with _PIPE_LOCK:
+            _PIPE_STATE["running"] = False
+    except Exception as e:
+        with _PIPE_LOCK:
+            _PIPE_STATE["running"] = False
+            _PIPE_STATE["error"] = str(e)[:300]
+            for stg in _PIPE_STATE["stages"]:
+                if stg.get("status") in ("pending", "running"):
+                    stg["status"] = "error"
+
+
+def pipe_run(base_dir, body):
+    with _PIPE_LOCK:
+        if _PIPE_STATE["running"]:
+            return {"ok": False, "error": "已有流水线在运行"}
+    b = body or {}
+    tid = str(b.get("template") or "pcr")
+    tpl = next((t for t in PIPE_TEMPLATES if t["id"] == tid), None)
+    stages_def = b.get("stages") or (tpl["stages"] if tpl else None)
+    if not stages_def or not (1 <= len(stages_def) <= 6):
+        return {"ok": False, "error": "阶段数需为 1-6"}
+    stages = []
+    for sd in stages_def:
+        role = str(sd.get("role") or "default")
+        if role not in ROLES:
+            return {"ok": False, "error": "未知角色: " + role}
+        stages.append({"role": role, "title": str(sd.get("title") or ROLES[role][:6]),
+                       "prompt": str(sd.get("prompt") or "完成你的职责。")[:4000],
+                       "status": "pending", "sid": "", "output": "", "steps": 0, "tools": 0})
+    title = str(b.get("task") or b.get("title") or "多 Agent 流水线")[:80]
+    pid = uuid.uuid4().hex[:10]
+    with _PIPE_LOCK:
+        _PIPE_STATE.update(running=True, pid=pid, title=title, stages=stages, done=0, error="")
+        _PIPE_STATE["stages"] = stages
+    # 任务上下文注入每个阶段的首条消息
+    task_line = "【总体任务】" + title
+    for st in stages:
+        st["prompt"] = task_line + (chr(10)) + st["prompt"]
+    threading.Thread(target=_pipe_worker, args=(base_dir, pid, title, stages,
+                                                1 if b.get("auto_approve") else 1,
+                                                str(b.get("workdir") or ".")), daemon=True).start()
+    return {"ok": True, "pid": pid, "stages": len(stages)}
