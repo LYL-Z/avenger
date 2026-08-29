@@ -3413,8 +3413,49 @@ function renderSkillsPane(){
     <div class="hsec"><span class="no">03</span><h3>技能市场 · 在线聚合</h3><div class="rule"></div>
       <div class="toolbar"><div class="search-box">${icon('i-search')}<input id="mkQ" placeholder="搜索市场技能…" oninput="marketRender()"></div>
       <button class="btn btn-sm" onclick="marketRefresh()">${icon('i-refresh')} 刷新聚合源</button></div></div>
-    <div id="mkBody" style="font-size:12px;color:var(--text-3)">加载索引…</div>`;
+    <div id="mkBody" style="font-size:12px;color:var(--text-3)">加载索引…</div>
+    <div class="hsec"><span class="no">04</span><h3>AI 生成工坊</h3><div class="rule"></div>
+      <div class="toolbar"><select id="genDomain" onchange="genFill()" style="width:130px"></select>
+      <button class="btn btn-sm btn-primary" onclick="genBatch()">${icon('i-zap')} 批量生成当前域</button>
+      <span id="genProg" style="font-size:11.5px;color:var(--text-3)"></span></div></div>
+    <div id="genBody" style="font-size:12px;color:var(--text-3)">加载主题库…</div>`;
   marketRender();
+  genFill();
+}
+const GEN_DOMAINS=[['','全部'],['dev','开发'],['ops','运维'],['data','数据'],['ai','AI'],['fe','前端'],['be','后端'],['write','写作'],['office','效率'],['science','科学']];
+let _genTopics=[];
+async function genFill(){
+  const sel=$('genDomain');
+  if(sel&&!sel.options.length)sel.innerHTML=GEN_DOMAINS.map(d=>'<option value="'+d[0]+'">'+d[1]+'</option>').join('');
+  const d=await api('/api/gen/topics'+(sel?.value?'?domain='+sel.value:''));
+  if(!d?.topics)return;
+  _genTopics=d.topics;
+  const box=$('genBody');if(!box)return;
+  box.innerHTML='<div class="ledger">'+d.topics.map(t=>'<div class="ledger-row" style="grid-template-columns:70px 1fr auto">'
+    +'<span class="badge badge-purple" style="font-size:9px">'+esc(t.domain)+'</span>'
+    +'<span style="font-size:12px">'+esc(t.title)+' <span class="mono" style="font-size:9.5px;color:var(--text-4)">'+esc(t.tid)+'</span></span>'
+    +'<button class="btn btn-sm" onclick="genOne(this.dataset.tid,this)" data-tid="'+esc(t.tid)+'">生成</button></div>').join('')+'</div>';
+}
+function genBatch(){
+  const domain=$('genDomain').value;
+  confirmModal('批量生成技能','将用当前接入的 AI 模型逐个生成「'+(domain||'全部')+'」域技能（每主题约 15-40 秒），生成后标记「未审核」。',async()=>{
+    const d=await api('/api/gen/run',{method:'POST',body:{domain:domain||undefined}});
+    if(d?.ok){genPoll();toast('批量生成已启动','success')}else toast(d?.error||'启动失败','error');
+  },{iconClass:'info',confirmText:'开始生成'});
+}
+async function genOne(tid,btn){
+  if(btn){btn.disabled=true;btn.textContent='生成中…'}
+  const d=await api('/api/gen/run',{method:'POST',body:{tids:[tid]}});
+  if(d?.ok){genPoll(()=>{_hut.skills=null;if(currentModule==='agenthut')loadAgentHut(navToken)})}
+  else{toast(d?.error||'失败','error');if(btn){btn.disabled=false;btn.textContent='生成'}}
+}
+function genPoll(done){
+  api('/api/gen/status').then(st=>{
+    const el=$('genProg');
+    if(el&&st.total)el.textContent=st.running?('生成中 '+st.done+'/'+st.total+' · '+st.current+(st.fail?' · 失败 '+st.fail:'')):('上次：成功 '+st.ok+' / 失败 '+st.fail);
+    if(st.running)setTimeout(()=>genPoll(done),2000);
+    else if(done)done();
+  });
 }
 let _mkItems=null;
 async function marketRefresh(){

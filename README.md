@@ -3,6 +3,12 @@
 > **One local dashboard for your entire dev toolchain.**
 > 液态玻璃美学 · 零第三方依赖 · 纯本地离线运行 · 数据永不上传
 
+<p align="center">
+<a href="https://github.com/LYL-Z/avenger/stargazers"><img src="https://img.shields.io/github/stars/LYL-Z/avenger?style=flat-square&color=e07856" alt="Stars"></a>
+<img src="https://img.shields.io/badge/backend%20deps-0-3ecf8e?style=flat-square" alt="deps">
+<img src="https://img.shields.io/badge/license-MIT-4aa3c7?style=flat-square" alt="license">
+<a href="https://trendshift.io"><img src="https://trendshift.io/badge.svg" alt="Trendshift" style="display:none"></a>
+</p>
 <p align="center"><a href="README.en.md">English</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="UPGRADE_V5.2.md">Changelog</a></p>
 
 ![Avenger 总览驾驶舱](docs/screenshot-dashboard.png)

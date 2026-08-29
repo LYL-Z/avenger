@@ -2388,6 +2388,14 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"error": "agent 模块缺失"}, 500)
             return
 
+        if path == "/api/gen/topics":
+            self._send_json({"topics": agentmod.gen_topics(qs.get("domain", [""])[0])} if agentmod else {"error": "agent 模块缺失"}, 200 if agentmod else 500)
+            return
+
+        if path == "/api/gen/status":
+            self._send_json(agentmod.gen_status() if agentmod else {"error": "agent 模块缺失"}, 200 if agentmod else 500)
+            return
+
         if path == "/api/market/skills":
             if agentmod:
                 self._send_json({"items": agentmod.skill_market_list(BASE_DIR, qs.get("q", [""])[0])})
@@ -2835,6 +2843,7 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             "/api/gh/gist-save": self._handle_gh_gist_save,
             "/api/gh/gist-load": self._handle_gh_gist_load,
             "/api/gh/issue": self._handle_gh_issue,
+            "/api/gen/run": self._handle_gen_run,
             "/api/train/script": self._handle_train_script,
             "/api/agent/ide": self._handle_ide_generate,
         }
@@ -3537,6 +3546,16 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             return
         name = re.sub(r"[^a-zA-Z0-9._-]+", "-", str((body or {}).get("project") or "my-project"))[:40]
         self._send_json(agentmod.ide_extension(name or "my-project"))
+
+    def _handle_gen_run(self, body):
+        if not agentmod:
+            self._send_json({"ok": False, "error": "agent 模块缺失"}, 500)
+            return
+        b = body or {}
+        tids = b.get("tids") or []
+        if b.get("domain"):
+            tids = [t["tid"] for t in agentmod.gen_topics(b["domain"])]
+        self._send_json(agentmod.gen_run(BASE_DIR, [str(t) for t in tids][:30]))
 
     def _handle_market_refresh(self, body):
         if not agentmod:

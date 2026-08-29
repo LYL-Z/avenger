@@ -1798,3 +1798,154 @@ def gh_issue(base_dir, title, body):
     if st == 201 and isinstance(data, dict):
         return {"ok": True, "url": data.get("html_url", "")}
     return {"ok": False, "error": "Issue 创建失败 HTTP %d" % st}
+
+
+# ============================================================
+# 15. V6.5b AI 技能生成管线
+# ============================================================
+import threading  # noqa: E402
+
+GEN_TOPICS = [
+    ("dev", "code-refactor", "代码重构方法论"),
+    ("dev", "api-testing", "API 自动化测试策略"),
+    ("dev", "docker-compose", "Docker Compose 多服务编排"),
+    ("dev", "cicd-pipeline", "CI/CD 流水线设计"),
+    ("dev", "git-flow", "团队 Git 分支模型"),
+    ("dev", "performance-profiling", "性能剖析与火焰图"),
+    ("dev", "code-style-guide", "代码风格规范制定"),
+    ("dev", "dependency-upgrade", "依赖安全升级流程"),
+    ("ops", "linux-troubleshoot", "Linux 故障排查手册"),
+    ("ops", "nginx-config", "Nginx 配置与调优"),
+    ("ops", "k8s-basics", "Kubernetes 上手与排障"),
+    ("ops", "backup-strategy", "备份与灾备策略"),
+    ("ops", "log-analysis", "日志分析实战"),
+    ("ops", "incident-response", "线上事故应急响应"),
+    ("ops", "monitoring-design", "监控告警体系设计"),
+    ("ops", "ssh-hardening", "SSH 与服务器加固"),
+    ("data", "sql-tuning", "SQL 调优实战"),
+    ("data", "data-modeling", "数据建模方法论"),
+    ("data", "etl-design", "ETL 管道设计"),
+    ("data", "data-quality", "数据质量治理"),
+    ("data", "dashboard-design", "数据看板设计"),
+    ("data", "ab-testing", "A/B 实验设计与解读"),
+    ("data", "csv-wrangling", "表格数据清洗技巧"),
+    ("data", "metric-design", "业务指标体系设计"),
+    ("ai", "prompt-design", "提示词工程设计"),
+    ("ai", "rag-pipeline", "RAG 检索增强管道"),
+    ("ai", "fine-tune-guide", "大模型微调决策指南"),
+    ("ai", "eval-metrics", "LLM 效果评测体系"),
+    ("ai", "agent-design", "Agent 架构设计"),
+    ("ai", "ai-safety", "AI 应用安全护栏"),
+    ("ai", "embedding-usage", "向量嵌入应用技巧"),
+    ("ai", "mcp-tool-design", "MCP 工具设计规范"),
+    ("fe", "responsive-design", "响应式布局方法论"),
+    ("fe", "web-accessibility", "Web 无障碍基线"),
+    ("fe", "state-management", "前端状态管理选型"),
+    ("fe", "css-architecture", "CSS 架构与设计令牌"),
+    ("fe", "web-performance", "Web 性能优化清单"),
+    ("fe", "ui-motion", "界面动效设计原则"),
+    ("fe", "form-ux", "表单交互体验优化"),
+    ("be", "auth-design", "认证授权设计（JWT/OAuth/Session）"),
+    ("be", "caching-strategy", "缓存策略与穿透防护"),
+    ("be", "queue-design", "消息队列选型与实践"),
+    ("be", "rate-limiting", "限流算法与落地"),
+    ("be", "api-versioning", "API 版本管理策略"),
+    ("be", "microservices", "微服务拆分与边界"),
+    ("be", "idempotency", "幂等性设计模式"),
+    ("be", "db-migration", "数据库迁移零停机方案"),
+    ("write", "tech-blog", "技术博客写作法"),
+    ("write", "release-notes", "Release Notes 撰写"),
+    ("write", "api-docs", "API 文档写作规范"),
+    ("write", "meeting-notes", "会议纪要结构化"),
+    ("write", "sop-writing", "SOP 标准流程文档"),
+    ("write", "translation-style", "技术翻译风格指南"),
+    ("write", "commit-message", "提交信息与变更日志"),
+    ("write", "error-message", "错误信息设计"),
+    ("office", "excel-formulas", "Excel 公式进阶"),
+    ("office", "slides-design", "幻灯片设计原则"),
+    ("office", "email-etiquette", "职场邮件规范"),
+    ("office", "time-blocking", "时间块工作法"),
+    ("office", "note-system", "笔记系统构建（PARA/Zettelkasten）"),
+    ("office", "search-skills", "高效检索技巧"),
+    ("science", "latex-math", "LaTeX 数学排版"),
+    ("science", "unit-analysis", "量纲分析入门"),
+    ("science", "stats-basics", "统计学基础速查"),
+    ("science", "chem-safety", "实验室安全守则"),
+]
+
+_GEN_STATE = {"running": False, "done": 0, "total": 0, "ok": 0, "fail": 0, "current": "", "errors": []}
+
+
+def gen_topics(domain=""):
+    return [{"tid": t[1], "domain": t[0], "title": t[2]} for t in GEN_TOPICS if not domain or t[0] == domain]
+
+
+def gen_status():
+    return dict(_GEN_STATE)
+
+
+def _gen_one(base_dir, tid, token=""):
+    topic = next((t for t in GEN_TOPICS if t[1] == tid), None)
+    if not topic:
+        return {"ok": False, "error": "未知主题"}
+    domain, tid, title = topic
+    prompt = (
+        "为 AI 编程助手写一份技能指令文档，主题：「" + title + "」。\n"
+        "要求：\n1. 只输出 Markdown 正文，不要 YAML frontmatter，不要代码围栏包裹整体；\n"
+        "2. 结构固定：## 核心原则（3-5条）→ ## 工作流程（编号步骤）→ ## 检查清单（复选框列表）→ ## 常见坑（3-5条）；\n"
+        "3. 每条都可执行、具体、无废话；总长 400-700 字；中文。"
+    )
+    import avenger_studio as studio
+    r = studio.ai_chat(base_dir, {
+        "provider": (studio.load_secrets(base_dir).get("active") or "ollama"),
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": 2048, "temperature": 0.5,
+    })
+    if not r.get("ok"):
+        return {"ok": False, "error": r.get("error", "AI 调用失败")}
+    body = (r.get("content") or "").strip()
+    body = re.sub(r"^```[a-z]*\n?", "", body)
+    body = re.sub("\n?```$", "", body)
+    if len(body) < 250 or "##" not in body:
+        return {"ok": False, "error": "生成内容过短或结构不符，已丢弃"}
+    skill_id = "gen-" + tid
+    slug = re.sub(r"[^a-z0-9-]+", "-", skill_id)[:64]
+    target = Path(skill_dirs()["avenger"]) / slug
+    target.mkdir(parents=True, exist_ok=True)
+    (target / "SKILL.md").write_text(_skill_md(slug, title + "（AI 生成·未审核）", body), encoding="utf-8")
+    conn = _market_conn(base_dir)
+    conn.execute("INSERT OR REPLACE INTO skill_market(id,repo,path,name,desc,source,updated) VALUES(?,?,?,?,?,?,?)",
+                 (slug, "generated", "generated/" + slug, title, title + "（AI 生成·未审核）", "generated",
+                  time.strftime("%Y-%m-%d %H:%M")))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "id": slug, "title": title}
+
+
+def _gen_worker(base_dir, tids):
+    _GEN_STATE.update(running=True, done=0, total=len(tids), ok=0, fail=0, current="", errors=[])
+    for tid in tids:
+        if not _GEN_STATE["running"]:
+            break
+        _GEN_STATE["current"] = tid
+        r = _gen_one(base_dir, tid)
+        _GEN_STATE["done"] += 1
+        if r.get("ok"):
+            _GEN_STATE["ok"] += 1
+        else:
+            _GEN_STATE["fail"] += 1
+            if len(_GEN_STATE["errors"]) < 5:
+                _GEN_STATE["errors"].append(tid + ": " + r.get("error", "")[:80])
+        time.sleep(0.3)
+    _GEN_STATE["running"] = False
+    _GEN_STATE["current"] = ""
+
+
+def gen_run(base_dir, tids):
+    if _GEN_STATE["running"]:
+        return {"ok": False, "error": "已有生成任务进行中"}
+    tids = [t for t in tids if any(x[1] == t for x in GEN_TOPICS)][:30]
+    if not tids:
+        return {"ok": False, "error": "没有有效主题"}
+    threading.Thread(target=_gen_worker, args=(base_dir, tids), daemon=True).start()
+    return {"ok": True, "total": len(tids)}
