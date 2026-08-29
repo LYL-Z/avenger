@@ -2388,6 +2388,10 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"error": "agent 模块缺失"}, 500)
             return
 
+        if path == "/api/pipe/tpl-list":
+            self._send_json({"items": coremod.pipe_tpl_list(BASE_DIR)} if coremod else {"error": "core 模块缺失"}, 200 if coremod else 500)
+            return
+
         if path == "/api/pipe/templates":
             self._send_json({"templates": coremod.pipe_templates()} if coremod else {"error": "core 模块缺失"}, 200 if coremod else 500)
             return
@@ -2853,6 +2857,8 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             "/api/gh/issue": self._handle_gh_issue,
             "/api/gen/run": self._handle_gen_run,
             "/api/pipe/run": self._handle_pipe_run,
+            "/api/pipe/tpl-save": self._handle_pipe_tpl_save,
+            "/api/pipe/tpl-delete": self._handle_pipe_tpl_delete,
             "/api/train/script": self._handle_train_script,
             "/api/agent/ide": self._handle_ide_generate,
         }
@@ -3555,6 +3561,18 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             return
         name = re.sub(r"[^a-zA-Z0-9._-]+", "-", str((body or {}).get("project") or "my-project"))[:40]
         self._send_json(agentmod.ide_extension(name or "my-project"))
+
+    def _handle_pipe_tpl_save(self, body):
+        if not coremod:
+            self._send_json({"ok": False, "error": "core 模块缺失"}, 500)
+            return
+        self._send_json(coremod.pipe_tpl_save(BASE_DIR, body or {}))
+
+    def _handle_pipe_tpl_delete(self, body):
+        if not coremod:
+            self._send_json({"ok": False, "error": "core 模块缺失"}, 500)
+            return
+        self._send_json(coremod.pipe_tpl_delete(BASE_DIR, str((body or {}).get("id") or "")))
 
     def _handle_pipe_run(self, body):
         if not coremod:

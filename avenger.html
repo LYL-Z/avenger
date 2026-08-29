@@ -4676,7 +4676,9 @@ async function loadPipe(token){
         <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
           <input id="pipeTask" placeholder="总体任务描述" style="width:100%">
           <input id="pipeDir" placeholder="工作目录（可选）" class="mono" style="width:100%">
-          <button class="btn btn-primary" onclick="pipeRun()">${icon('i-zap')} 启动流水线</button>
+          <div class="toolbar"><button class="btn btn-primary" onclick="pipeRun()">${icon('i-zap')} 启动流水线</button>
+          <input id="pipeTplName" placeholder="模板名" style="width:110px"><button class="btn btn-sm" onclick="pipeTplSave()">${icon('i-save')} 存为模板</button></div>
+          <div id="pipeTplList" class="mono" style="font-size:11px;color:var(--text-3)"></div>
         </div>
       </div>
       <div>
@@ -4687,7 +4689,7 @@ async function loadPipe(token){
       </div>
     </div>`,token);
   if(!stillOn('pipe',token))return;
-  pipeDrawEditor();pipeDrawCanvas();pipePoll();
+  pipeDrawEditor();pipeDrawCanvas();pipePoll();pipeTplRefresh();
   choreo($('mod-pipe'));
 }
 function pipeUseTpl(id){
@@ -4703,6 +4705,7 @@ function pipeDrawEditor(){
     +'<div class="toolbar" style="margin-bottom:6px"><select data-i="'+i+'" data-f="role" onchange="pipeStageSet(this)" style="width:110px">'
     +[['default','全能'],['planner','规划者'],['coder','编码者'],['reviewer','审查者']].map(r=>'<option value="'+r[0]+'" '+(st.role===r[0]?'selected':'')+'>'+r[1]+'</option>').join('')
     +'</select><input data-i="'+i+'" data-f="title" value="'+esc(st.title)+'" onchange="pipeStageSet(this)" style="flex:1" placeholder="阶段名">'
+    +'<label class="checkbox" style="gap:4px;font-size:11px">并行组 <input type="number" min="0" max="3" value="'+(st.group||0)+'" data-i="'+i+'" data-f="group" onchange="pipeStageSet(this)" style="width:56px"></label>'
     +(_pipeStages.length>1?'<button class="btn btn-sm btn-ghost btn-icon" onclick="pipeDelStage('+i+')">'+icon('i-trash')+'</button>':'')+'</div>'
     +'<textarea data-i="'+i+'" data-f="prompt" onchange="pipeStageSet(this)" style="width:100%;height:52px;font-size:12px">'+esc(st.prompt)+'</textarea></div>').join('');
 }
@@ -4717,14 +4720,25 @@ function pipeDrawCanvas(){
   const box=$('pipeCanvas');if(!box)return;
   const st=window._pipeStatus||{stages:_pipeStages.map(x=>({...x,status:'pending'}))};
   const stages=st.stages||[];
-  const W=Math.max(300,stages.length*170+40),H=110;
+  // 分块（与后端 _pipe_blocks 一致）
+  const blocks=[];let cur=[],curG=0;
+  stages.forEach(st2=>{const g=st2.group||0;
+    if(g>=1&&cur.length&&curG===g){cur.push(st2)}
+    else{if(cur.length)blocks.push(cur);cur=[st2];curG=g>=1?g:0}
+    if(g===0){blocks.push(cur);cur=[];curG=0}});
+  if(cur.length)blocks.push(cur);
+  const maxRows=Math.max(...blocks.map(b=>b.length));
+  const W=Math.max(300,blocks.length*170+40),H=maxRows*64+50;
   let nodes='',arrows='';
-  stages.forEach((sg,i)=>{
-    const x=20+i*170,y=30,col=PIPE_COLORS[sg.status]||'#8a93a3';
+  blocks.forEach((block,bi)=>{
+    const x=20+bi*170;
+    block.forEach((sg,ri)=>{
+      const i=stages.indexOf(sg),y=30+ri*62,col=PIPE_COLORS[sg.status]||'#8a93a3';
     nodes+='<g style="cursor:pointer" onclick="pipeShowOut('+i+')"><rect x="'+x+'" y="'+y+'" width="140" height="54" rx="12" fill="'+col+'22" stroke="'+col+'" stroke-width="1.5"/>'
       +'<text x="'+(x+70)+'" y="'+(y+22)+'" text-anchor="middle" font-size="12" font-weight="700" fill="currentColor">'+esc(sg.title||sg.role)+'</text>'
       +'<text x="'+(x+70)+'" y="'+(y+40)+'" text-anchor="middle" font-size="10" fill="'+col+'">'+(sg.status==='running'?'● 运行中':sg.status==='done'?'✓ 完成':sg.status==='blocked'?'⚠ 审批':sg.status==='error'?'✗ 出错':'待执行')+'</text></g>';
-    if(i<stages.length-1)arrows+='<line x1="'+(x+140)+'" y1="'+(y+27)+'" x2="'+(x+170)+'" y2="'+(y+27)+'" stroke="currentColor" stroke-opacity=".35" stroke-width="2" marker-end="url(#aw)"/>';
+    if(bi<blocks.length-1&&ri===0)arrows+='<line x1="'+(x+140)+'" y1="'+(30+26)+'" x2="'+(x+170)+'" y2="'+(30+26)+'" stroke="currentColor" stroke-opacity=".35" stroke-width="2" marker-end="url(#aw)"/>';
+  });
   });
   box.innerHTML='<svg id="pipeSvg" width="100%" viewBox="0 0 '+W+' '+H+'" style="color:var(--text-2)"><defs><marker id="aw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="currentColor" fill-opacity=".4"/></marker></defs>'+arrows+nodes+'</svg>';
 }
@@ -4735,6 +4749,26 @@ function pipeShowOut(i){
     +(sg.output?mdLite(sg.output):'<span style="color:var(--text-3)">尚未产出</span>')
     +(sg.sid?'<div style="margin-top:10px"><button class="btn btn-sm" onclick="closeModal();switchModule(\'agentws\');awOpen(\''+sg.sid+'\')">'+icon('i-terminal')+' 查看完整轨迹</button></div>':'')
     +'</div><div class="modal-footer"><button class="btn" onclick="closeModal()">关闭</button></div>');
+}
+let _pipeTplList=[];
+async function pipeTplRefresh(){
+  const d=await api('/api/pipe/tpl-list');
+  _pipeTplList=(d&&d.items)||[];
+  const el=$('pipeTplList');if(!el)return;
+  el.innerHTML=_pipeTplList.length?('已存模板：'+_pipeTplList.map(t=>'<a href="javascript:void(0)" style="color:var(--accent)" data-id="'+esc(t.id)+'" onclick="pipeTplLoad(this.dataset.id)">'+esc(t.name)+'</a> <span style="color:var(--text-4)">[</span><a href="javascript:void(0)" style="color:var(--danger)" data-id="'+esc(t.id)+'" onclick="pipeTplDel(this.dataset.id)">删</a><span style="color:var(--text-4)">]</span>').join('　')):'';
+}
+function pipeTplLoad(id){
+  const t=_pipeTplList.find(x=>x.id===id);if(!t)return;
+  _pipeStages=JSON.parse(JSON.stringify(t.stages));
+  if($('pipeTask'))$('pipeTask').value=t.task||'';
+  pipeDrawEditor();pipeDrawCanvas();toast('模板已载入: '+t.name,'info');
+}
+async function pipeTplDel(id){await api('/api/pipe/tpl-delete',{method:'POST',body:{id}});pipeTplRefresh()}
+async function pipeTplSave(){
+  const name=($('pipeTplName')||{}).value||'';
+  if(!name.trim()){toast('填写模板名','error');return}
+  const d=await api('/api/pipe/tpl-save',{method:'POST',body:{name,task:($('pipeTask')||{}).value||'',stages:_pipeStages}});
+  if(d?.ok){toast('模板已保存','success');pipeTplRefresh()}else toast(d?.error||'保存失败','error');
 }
 async function pipeRun(){
   const task=($('pipeTask')||{}).value||'';

@@ -621,60 +621,137 @@ def pipe_status():
         return json.loads(json.dumps(_PIPE_STATE))
 
 
+def _run_one_stage(base_dir, st, handoff, auto_approve, workdir):
+    """执行单个阶段（子代理会话），返回 (status, output, sid, steps)。"""
+    prompt = st["prompt"]
+    if handoff:
+        prompt += (chr(10) * 2 + "[上一阶段输出摘录]" + chr(10)) + handoff[:3000]
+    sess = core_session_create(base_dir, {
+        "title": st["title"], "role": st["role"], "mode": "act",
+        "auto_approve": auto_approve, "workdir": workdir})
+    if not sess.get("ok"):
+        return "error", "", "", 0
+    sid = sess["id"]
+    sent = core_send(base_dir, sid, prompt, workdir)
+    if not sent.get("ok"):
+        return "error", "", sid, 0
+    deadline = time.time() + 900
+    while time.time() < deadline:
+        cur = STORE.session(sid) or {}
+        status = cur.get("status")
+        if status == "waiting":
+            core_approve(base_dir, sid, True)
+            continue
+        if status in ("done", "stopped", "error"):
+            break
+        time.sleep(1.2)
+    evs = STORE.events(sid)
+    outs = [e["data"].get("content", "") for e in evs if e["type"] == "assistant"]
+    out = outs[-1] if outs else ""
+    final = "done"
+    sess_now = STORE.session(sid) or {}
+    if sess_now.get("status") == "error":
+        final = "error"
+    elif not out:
+        final = "empty"
+    return final, out, sid, len(evs)
+
+
+def _pipe_blocks(stages):
+    """按 group 字段切块：连续相同 group(>=1) 的阶段并行，其余各自独立串行。"""
+    blocks = []
+    cur = []
+    cur_g = 0
+    for st in stages:
+        g = int(st.get("group") or 0)
+        if g >= 1 and cur and cur_g == g:
+            cur.append(st)
+        else:
+            if cur:
+                blocks.append(cur)
+            cur = [st]
+            cur_g = g if g >= 1 else 0
+        if g == 0:
+            if cur:
+                blocks.append(cur)
+                cur = []
+            cur_g = 0
+    if cur:
+        blocks.append(cur)
+    return blocks
+
+
 def _pipe_worker(base_dir, pid, title, stages, auto_approve, workdir):
     try:
         handoff = ""
-        for i, st in enumerate(stages):
-            with _PIPE_LOCK:
-                _PIPE_STATE["stages"][i]["status"] = "running"
-                _PIPE_STATE["stages"][i]["sid"] = ""
-            prompt = st["prompt"]
-            if handoff:
-                prompt += (chr(10)*2 + "[上一阶段输出摘录]" + chr(10)) + handoff[:3000]
-            sess = core_session_create(base_dir, {
-                "title": "%s · %s" % (title, st["title"]), "role": st["role"],
-                "mode": "act", "auto_approve": auto_approve, "workdir": workdir,
-                "first_message": prompt})
-            if not sess.get("ok"):
-                raise RuntimeError(sess.get("error", "会话创建失败"))
-            sid = sess["id"]
-            sent = core_send(base_dir, sid, prompt, workdir)
-            if not sent.get("ok"):
-                raise RuntimeError(sent.get("error", "子代理启动失败"))
-            with _PIPE_LOCK:
-                _PIPE_STATE["stages"][i]["sid"] = sid
-            # 等待该子代理结束（人工审批视为阻塞点）
-            deadline = time.time() + 900
-            while time.time() < deadline:
-                s = STORE.session(sid) or {}
-                status = s.get("status")
-                if status == "waiting":
-                    with _PIPE_LOCK:
-                        _PIPE_STATE["stages"][i]["status"] = "blocked"
-                    # 自动放行一次审批（流水线模式默认信任规划，写操作仍由内核会话内审批）
-                    core_approve(base_dir, sid, True)
-                    with _PIPE_LOCK:
+        blocks = _pipe_blocks(stages)
+        done_count = 0
+        for block in blocks:
+            if len(block) == 1:
+                i = stages.index(block[0])
+                with _PIPE_LOCK:
+                    _PIPE_STATE["stages"][i]["status"] = "running"
+                status, out, sid, steps = _run_one_stage(base_dir, block[0], handoff, auto_approve, workdir)
+                with _PIPE_LOCK:
+                    _PIPE_STATE["stages"][i].update({"status": status, "output": out[:4000], "sid": sid, "steps": steps})
+                done_count += 1
+                with _PIPE_LOCK:
+                    _PIPE_STATE["done"] = done_count
+                if status == "error":
+                    handoff += chr(10) + "[该阶段执行出错，请谨慎继续]"
+                else:
+                    handoff = out
+            else:
+                # 并行块：同时创建并发送，统一等待
+                idxs = [stages.index(x) for x in block]
+                with _PIPE_LOCK:
+                    for i in idxs:
                         _PIPE_STATE["stages"][i]["status"] = "running"
-                    continue
-                if status in ("done", "stopped", "error"):
-                    break
-                time.sleep(1.2)
-            evs = STORE.events(sid)
-            outs = [e["data"].get("content", "") for e in evs if e["type"] == "assistant"]
-            out = (outs[-1] if outs else "")
-            tools_used = sum(1 for e in evs if e["type"] == "tool_result")
-            final_status = "done"
-            sess_now = STORE.session(sid) or {}
-            if sess_now.get("status") == "error":
-                final_status = "error"
-            elif not out:
-                final_status = "empty"
-            with _PIPE_LOCK:
-                _PIPE_STATE["stages"][i].update({"status": final_status, "output": out[:4000],
-                                                 "sid": sid, "steps": len(evs), "tools": tools_used})
-            handoff = out
-            with _PIPE_LOCK:
-                _PIPE_STATE["done"] = i + 1
+                sids = []
+                for k, st in enumerate(block):
+                    sess = core_session_create(base_dir, {
+                        "title": st["title"], "role": st["role"], "mode": "act",
+                        "auto_approve": auto_approve, "workdir": workdir})
+                    sid = sess.get("id", "") if sess.get("ok") else ""
+                    sids.append(sid)
+                    with _PIPE_LOCK:
+                        _PIPE_STATE["stages"][idxs[k]]["sid"] = sid
+                    if sid:
+                        core_send(base_dir, sid, st["prompt"], workdir)
+                deadline = time.time() + 900
+                while time.time() < deadline:
+                    alive = False
+                    for k, sid in enumerate(sids):
+                        cur = STORE.session(sid) or {} if sid else {"status": "error"}
+                        if cur.get("status") in ("running", "waiting", "idle", None):
+                            alive = True
+                        elif cur.get("status") == "waiting":
+                            core_approve(base_dir, sid, True)
+                    if not alive:
+                        break
+                    time.sleep(1.2)
+                for k, st in enumerate(block):
+                    i = idxs[k]
+                    sid = sids[k]
+                    if not sid:
+                        with _PIPE_LOCK:
+                            _PIPE_STATE["stages"][i]["status"] = "error"
+                        continue
+                    evs = STORE.events(sid)
+                    outs = [e["data"].get("content", "") for e in evs if e["type"] == "assistant"]
+                    out = outs[-1] if outs else ""
+                    final, _, _, steps = "done", out, sid, len(evs)
+                    sess_now = STORE.session(sid) or {}
+                    if sess_now.get("status") == "error":
+                        final = "error"
+                    elif not out:
+                        final = "empty"
+                    with _PIPE_LOCK:
+                        _PIPE_STATE["stages"][i].update({"status": final, "output": out[:4000], "sid": sid, "steps": steps})
+                    done_count += 1
+                with _PIPE_LOCK:
+                    _PIPE_STATE["done"] = done_count
+                handoff = chr(10).join([(_PIPE_STATE["stages"][i].get("output") or "") for i in idxs])
         with _PIPE_LOCK:
             _PIPE_STATE["running"] = False
     except Exception as e:
@@ -717,3 +794,45 @@ def pipe_run(base_dir, body):
                                                 1 if b.get("auto_approve") else 1,
                                                 str(b.get("workdir") or ".")), daemon=True).start()
     return {"ok": True, "pid": pid, "stages": len(stages)}
+
+
+# ---- 流水线模板持久化 ----
+
+def _ptpl_db(base_dir):
+    conn = sqlite3.connect(str(Path(base_dir) / "avenger_notes.db"), timeout=8)
+    conn.execute("CREATE TABLE IF NOT EXISTS pipe_templates("
+                 "id TEXT PRIMARY KEY, name TEXT, task TEXT, stages TEXT, created TEXT)")
+    conn.commit()
+    return conn
+
+
+def pipe_tpl_save(base_dir, body):
+    b = body or {}
+    name = str(b.get("name") or "").strip()[:60]
+    stages = b.get("stages") or []
+    if not name or not stages:
+        return {"ok": False, "error": "名称与阶段不能为空"}
+    tid = uuid.uuid4().hex[:8]
+    conn = _ptpl_db(base_dir)
+    conn.execute("INSERT OR REPLACE INTO pipe_templates(id,name,task,stages,created) VALUES(?,?,?,?,?)",
+                 (tid, name, str(b.get("task") or "")[:200],
+                  json.dumps(stages, ensure_ascii=False), time.strftime("%Y-%m-%d %H:%M:%S")))
+    conn.commit()
+    conn.close()
+    return {"ok": True, "id": tid}
+
+
+def pipe_tpl_list(base_dir):
+    conn = _ptpl_db(base_dir)
+    rows = conn.execute("SELECT id,name,task,stages,created FROM pipe_templates ORDER BY created DESC").fetchall()
+    conn.close()
+    return [{"id": r[0], "name": r[1], "task": r[2],
+             "stages": json.loads(r[3] or "[]"), "created": r[4]} for r in rows]
+
+
+def pipe_tpl_delete(base_dir, tid):
+    conn = _ptpl_db(base_dir)
+    conn.execute("DELETE FROM pipe_templates WHERE id=?", (tid,))
+    conn.commit()
+    conn.close()
+    return {"ok": True}
