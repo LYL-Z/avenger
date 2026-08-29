@@ -1,0 +1,29 @@
+# ==== 运行时生成的本机数据（含密钥/笔记/日志），绝不入库 ====
+avenger.token
+avenger_port.txt
+avenger_secrets.json
+avenger_notes.db
+avenger_operations.log
+avenger_cache_meta.json
+avenger_ui.json
+python_env_manager.log
+
+# ==== Python ====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ==== 本机备份与临时文件 ====
+backups/
+*.log
+*.tmp
+nul
+
+# ==== 系统/编辑器 ====
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
