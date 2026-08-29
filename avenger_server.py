@@ -2388,6 +2388,13 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"error": "agent 模块缺失"}, 500)
             return
 
+        if path == "/api/market/skills":
+            if agentmod:
+                self._send_json({"items": agentmod.skill_market_list(BASE_DIR, qs.get("q", [""])[0])})
+            else:
+                self._send_json({"error": "agent 模块缺失"}, 500)
+            return
+
         if path == "/api/core/sessions":
             self._send_json({"sessions": coremod.STORE.sessions()} if coremod else {"error": "core 模块缺失"}, 200 if coremod else 500)
             return
@@ -2821,6 +2828,13 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             "/api/core/stop": self._handle_core_stop,
             "/api/core/mcp/start": self._handle_core_mcp_start,
             "/api/core/mcp/stop": self._handle_core_mcp_stop,
+            "/api/market/refresh": self._handle_market_refresh,
+            "/api/market/install": self._handle_market_install,
+            "/api/gh/verify": self._handle_gh_verify,
+            "/api/gh/star": self._handle_gh_star,
+            "/api/gh/gist-save": self._handle_gh_gist_save,
+            "/api/gh/gist-load": self._handle_gh_gist_load,
+            "/api/gh/issue": self._handle_gh_issue,
             "/api/train/script": self._handle_train_script,
             "/api/agent/ide": self._handle_ide_generate,
         }
@@ -3523,6 +3537,53 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             return
         name = re.sub(r"[^a-zA-Z0-9._-]+", "-", str((body or {}).get("project") or "my-project"))[:40]
         self._send_json(agentmod.ide_extension(name or "my-project"))
+
+    def _handle_market_refresh(self, body):
+        if not agentmod:
+            self._send_json({"ok": False, "error": "agent 模块缺失"}, 500)
+            return
+        b = body or {}
+        token = str(b.get("token") or "") or agentmod._gh_token(BASE_DIR)
+        self._send_json(agentmod.skill_market_refresh(BASE_DIR, token))
+
+    def _handle_market_install(self, body):
+        if not agentmod:
+            self._send_json({"ok": False, "error": "agent 模块缺失"}, 500)
+            return
+        b = body or {}
+        self._send_json(agentmod.skill_market_install(BASE_DIR, str(b.get("id") or ""),
+                                                      str(b.get("token") or "") or agentmod._gh_token(BASE_DIR)))
+
+    def _handle_gh_verify(self, body):
+        if not agentmod:
+            self._send_json({"ok": False, "error": "agent 模块缺失"}, 500)
+            return
+        self._send_json(agentmod.gh_verify(BASE_DIR, str((body or {}).get("token") or "")))
+
+    def _handle_gh_star(self, body):
+        if not agentmod:
+            self._send_json({"ok": False, "error": "agent 模块缺失"}, 500)
+            return
+        self._send_json(agentmod.gh_star(BASE_DIR, str((body or {}).get("repo") or agentmod.GH_DEFAULT_REPO)))
+
+    def _handle_gh_gist_save(self, body):
+        if not agentmod:
+            self._send_json({"ok": False, "error": "agent 模块缺失"}, 500)
+            return
+        self._send_json(agentmod.gh_gist_save(BASE_DIR, (body or {}).get("content") or "{}"))
+
+    def _handle_gh_gist_load(self, body):
+        if not agentmod:
+            self._send_json({"ok": False, "error": "agent 模块缺失"}, 500)
+            return
+        self._send_json(agentmod.gh_gist_load(BASE_DIR))
+
+    def _handle_gh_issue(self, body):
+        if not agentmod:
+            self._send_json({"ok": False, "error": "agent 模块缺失"}, 500)
+            return
+        b = body or {}
+        self._send_json(agentmod.gh_issue(BASE_DIR, b.get("title") or "反馈", b.get("body") or ""))
 
     def _handle_core_session(self, body):
         if not coremod:

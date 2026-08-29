@@ -1571,3 +1571,230 @@ def ide_extension(project_name='my-project'):
         {"name": "extension.js", "content": ext_js},
         {"name": "README.md", "content": readme},
     ]}
+
+
+# ============================================================
+# 13. V6.5 技能市场（聚合 GitHub 技能仓库 → 本地索引 → 一键安装）
+# ============================================================
+
+SKILL_MARKET_SOURCES = [
+    {"id": "anthropics", "repo": "anthropics/skills", "branch": "main",
+     "desc": "Anthropic 官方技能仓库（文档/开发/设计等）"},
+    {"id": "avenger-builtin", "repo": "", "branch": "",
+     "desc": "Avenger 内置精选技能包（离线，12 个）"},
+]
+
+
+def _market_db(base_dir):
+    conn = sqlite3.connect(str(Path(base_dir) / "avenger_notes.db"), timeout=8)
+    conn.execute("CREATE TABLE IF NOT EXISTS skill_market("
+                 "id TEXT PRIMARY KEY, repo TEXT, path TEXT, name TEXT, desc TEXT, "
+                 "source TEXT, updated TEXT)")
+    conn.commit()
+    return conn
+
+
+def _gh_headers(token):
+    h = {"User-Agent": "Avenger/6.5", "Accept": "application/vnd.github+json"}
+    if token:
+        h["Authorization"] = "Bearer " + token
+    return h
+
+
+def _gh_api(url, token="", method="GET", body=None):
+    from urllib.request import Request, urlopen
+    from urllib.error import HTTPError, URLError
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    req = Request(url, data=data, method=method, headers=_gh_headers(token))
+    if data:
+        req.add_header("Content-Type", "application/json")
+    try:
+        with urlopen(req, timeout=20) as resp:
+            raw = resp.read(2 * 1024 * 1024)
+            return resp.status, json.loads(raw.decode("utf-8", "replace")) if raw.strip().startswith(b"{") or raw.strip().startswith(b"[") else raw
+    except HTTPError as e:
+        return e.code, {"error": (e.read()[:300].decode("utf-8", "replace") if e.fp else str(e))}
+    except Exception as e:
+        return 0, {"error": str(e)[:200]}
+
+
+def skill_market_refresh(base_dir, token=""):
+    """抓取聚合源 → 归一化 → 写入本地索引。返回统计。"""
+    from urllib.request import Request, urlopen
+    total = 0
+    per_source = []
+    for src in SKILL_MARKET_SOURCES:
+        n = 0
+        if src["id"] == "avenger-builtin":
+            items = []
+            for s in SKILLS_REGISTRY:
+                items.append((s["id"], "builtin", "builtin/" + s["id"], s["name"], s["desc"]))
+            conn = _market_conn(base_dir)
+            for row in items:
+                conn.execute("INSERT OR REPLACE INTO skill_market(id,repo,path,name,desc,source,updated) VALUES(?,?,?,?,?,?,?)",
+                             (row[0], row[1], row[2], row[3], row[4], "builtin", time.strftime("%Y-%m-%d %H:%M")))
+            conn.commit()
+            conn.close()
+            n = len(items)
+        else:
+            st, tree = _gh_api("https://api.github.com/repos/%s/git/trees/%s?recursive=1" % (src["repo"], src["branch"]), token)
+            if st != 200 or not isinstance(tree, dict):
+                per_source.append({"source": src["id"], "ok": False, "error": str(tree.get("error", ""))[:120] if isinstance(tree, dict) else "HTTP %d" % st, "count": 0})
+                continue
+            paths = [t["path"] for t in tree.get("tree", [])
+                     if t.get("path", "").endswith("SKILL.md")][:120]
+            conn = _market_conn(base_dir)
+            for p in paths:
+                raw_url = "https://raw.githubusercontent.com/%s/%s/%s" % (src["repo"], src["branch"], p)
+                try:
+                    req = Request(raw_url, headers=_gh_headers(token))
+                    with urlopen(req, timeout=12) as resp:
+                        text = resp.read(20000).decode("utf-8", "replace")
+                except Exception:
+                    continue
+                m = re.match(r"^---\s*\nname:\s*(.+?)\s*\ndescription:\s*(.+?)\s*\n", text)
+                name = (m.group(1) if m else p.split("/")[-2])[:80]
+                desc = (m.group(2) if m else "")[:200]
+                skill_id = p.replace("/", "__").replace(" SKILL.md", "").replace("/SKILL.md", "")[:100]
+                conn.execute("INSERT OR REPLACE INTO skill_market(id,repo,path,name,desc,source,updated) VALUES(?,?,?,?,?,?,?)",
+                             (src["repo"] + "__" + skill_id, src["repo"], p, name, desc, src["id"],
+                              time.strftime("%Y-%m-%d %H:%M")))
+                n += 1
+            conn.commit()
+            conn.close()
+        per_source.append({"source": src["id"], "ok": True, "count": n})
+        total += n
+    return {"ok": True, "total": total, "sources": per_source}
+
+
+def _market_conn(base_dir):
+    return _market_db(base_dir)
+
+
+def skill_market_list(base_dir, q=""):
+    conn = _market_conn(base_dir)
+    rows = conn.execute("SELECT id,repo,path,name,desc,source,updated FROM skill_market ORDER BY source, name").fetchall()
+    conn.close()
+    q = (q or "").lower()
+    out = []
+    for r in rows:
+        if q and q not in (r[3] + " " + r[4]).lower():
+            continue
+        installed = (Path(skill_dirs()["avenger"]) / r[0].split("__")[-1] / "SKILL.md").exists() if r[2] == "builtin/" + r[0] else                     (Path(skill_dirs()["avenger"]) / r[0].split("__")[-1] / "SKILL.md").exists()
+        out.append({"id": r[0], "repo": r[1], "path": r[2], "name": r[3], "desc": r[4],
+                    "source": r[5], "updated": r[6], "installed": installed})
+    return out[:400]
+
+
+def skill_market_install(base_dir, mid, token=""):
+    conn = _market_conn(base_dir)
+    r = conn.execute("SELECT id,repo,path,name,desc,source FROM skill_market WHERE id=?", (mid,)).fetchone()
+    conn.close()
+    if not r:
+        return {"ok": False, "error": "索引中不存在该技能"}
+    skill_id = re.sub(r"[^a-z0-9-]+", "-", r[0].split("__")[-1].lower()).strip("-")[:64] or "skill"
+    content = ""
+    if r[5] == "builtin":
+        s = next((x for x in SKILLS_REGISTRY if x["id"] == r[0]), None)
+        if not s:
+            return {"ok": False, "error": "内置技能缺失"}
+        content = _skill_md(s["id"], s["desc"], s["body"])
+    else:
+        from urllib.request import Request, urlopen
+        raw_url = "https://raw.githubusercontent.com/%s/main/%s" % (r[1], r[2])
+        if "githubusercontent" not in raw_url:
+            return {"ok": False, "error": "源地址异常"}
+        try:
+            req = Request(raw_url, headers=_gh_headers(token))
+            with urlopen(req, timeout=15) as resp:
+                content = resp.read(60000).decode("utf-8", "replace")
+        except Exception as e:
+            return {"ok": False, "error": "下载失败: " + str(e)[:120]}
+    if not content.strip().startswith("---"):
+        m = re.search(r"^#\s*(.+)$", content, re.M)
+        content = _skill_md(skill_id, (m.group(1) if m else r[3])[:150], content)
+    target = Path(skill_dirs()["avenger"]) / skill_id
+    target.mkdir(parents=True, exist_ok=True)
+    (target / "SKILL.md").write_text(content, encoding="utf-8")
+    return {"ok": True, "id": skill_id, "path": str(target / "SKILL.md")}
+
+
+# ============================================================
+# 14. V6.5 GitHub 打通（验证/Star/Gist 同步/Issue）
+# ============================================================
+
+GH_DEFAULT_REPO = "LYL-Z/avenger"
+
+
+def _gh_token(base_dir):
+    import avenger_studio as studio
+    return (studio.load_secrets(base_dir).get("gh_token") or "")
+
+
+def gh_verify(base_dir, token):
+    st, data = _gh_api("https://api.github.com/user", token)
+    if st == 200 and isinstance(data, dict) and data.get("login"):
+        import avenger_studio as studio
+        sec = studio.load_secrets(base_dir)
+        sec["gh_token"] = token
+        studio.save_secrets(base_dir, sec)
+        log = data.get("login")
+        return {"ok": True, "login": log, "name": data.get("name") or log,
+                "avatar": data.get("avatar_url", "")}
+    return {"ok": False, "error": "令牌无效或无权限（需要 repo / user 权限）"}
+
+
+def gh_star(base_dir, repo=GH_DEFAULT_REPO):
+    token = _gh_token(base_dir)
+    if not token:
+        return {"ok": False, "error": "请先在设置里绑定 GitHub 令牌"}
+    st, data = _gh_api("https://api.github.com/user/starred/" + repo, token, method="PUT")
+    if st in (204, 200):
+        return {"ok": True, "repo": repo}
+    return {"ok": False, "error": "Star 失败 HTTP %d（令牌需要 repo 权限）" % st}
+
+
+def gh_gist_save(base_dir, content):
+    token = _gh_token(base_dir)
+    if not token:
+        return {"ok": False, "error": "请先绑定 GitHub 令牌"}
+    import avenger_studio as studio
+    sec = studio.load_secrets(base_dir)
+    gist_id = sec.get("gh_gist_id")
+    body = {"description": "Avenger preferences (auto-sync)", "public": False,
+            "files": {"avenger-prefs.json": {"content": str(content)[:100000]}}}
+    if gist_id:
+        st, data = _gh_api("https://api.github.com/gists/" + gist_id, token, method="PATCH", body=body)
+    else:
+        st, data = _gh_api("https://api.github.com/gists", token, method="POST", body=body)
+        if st in (200, 201) and isinstance(data, dict):
+            sec["gh_gist_id"] = data.get("id")
+            studio.save_secrets(base_dir, sec)
+    if st in (200, 201):
+        return {"ok": True, "gist_id": (data or {}).get("id", gist_id)}
+    return {"ok": False, "error": "同步失败 HTTP %d" % st}
+
+
+def gh_gist_load(base_dir):
+    token = _gh_token(base_dir)
+    import avenger_studio as studio
+    sec = studio.load_secrets(base_dir)
+    gist_id = sec.get("gh_gist_id")
+    if not token or not gist_id:
+        return {"ok": False, "error": "未绑定令牌或从未同步过"}
+    st, data = _gh_api("https://api.github.com/gists/" + gist_id, token)
+    if st == 200 and isinstance(data, dict):
+        f = (data.get("files") or {}).get("avenger-prefs.json") or {}
+        return {"ok": True, "content": f.get("content", "")}
+    return {"ok": False, "error": "拉取失败 HTTP %d" % st}
+
+
+def gh_issue(base_dir, title, body):
+    token = _gh_token(base_dir)
+    if not token:
+        return {"ok": False, "error": "请先绑定 GitHub 令牌"}
+    st, data = _gh_api("https://api.github.com/repos/%s/issues" % GH_DEFAULT_REPO, token,
+                       method="POST", body={"title": str(title)[:120], "body": str(body)[:8000]})
+    if st == 201 and isinstance(data, dict):
+        return {"ok": True, "url": data.get("html_url", "")}
+    return {"ok": False, "error": "Issue 创建失败 HTTP %d" % st}

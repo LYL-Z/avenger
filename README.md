@@ -3,6 +3,8 @@
 > **One local dashboard for your entire dev toolchain.**
 > 液态玻璃美学 · 零第三方依赖 · 纯本地离线运行 · 数据永不上传
 
+<p align="center"><a href="README.en.md">English</a> · <a href="ROADMAP.md">Roadmap</a> · <a href="UPGRADE_V5.2.md">Changelog</a></p>
+
 ![Avenger 总览驾驶舱](docs/screenshot-dashboard.png)
 
 **Avenger** 是一个运行在 Windows 本机的一站式开发者工作台：Python 多环境管理、多语言运行时检测、AI 大模型工坊（18 家供应商 + 流式输出）、编程练习场（26 题 kata）、开发者备忘录、速查学习库、硬件监控、编程健康护航……全部装进一个**液态玻璃质感**的本地网页。

@@ -3409,7 +3409,40 @@ function renderSkillsPane(){
       <span class="badge badge-info">${esc(k.scope)}</span>
       ${k.scope==='avenger'?`<button class="btn btn-sm btn-danger" onclick="skillUninstall('${esc(k.id)}')">${icon('i-trash')}</button>`:'<span></span>'}
     </div>`).join(''):'<div class="empty-state" style="padding:22px">还没有已安装技能，点上方「安装」试试</div>'}</div>
-    <div style="font-size:11px;color:var(--text-3);margin-top:10px">${icon('i-info')} 技能目录：<span class="mono">${esc(s.dirs.avenger)}</span> · Claude: <span class="mono">${esc(s.dirs.claude)}</span></div>`;
+    <div style="font-size:11px;color:var(--text-3);margin-top:10px">${icon('i-info')} 技能目录：<span class="mono">${esc(s.dirs.avenger)}</span> · Claude: <span class="mono">${esc(s.dirs.claude)}</span></div>
+    <div class="hsec"><span class="no">03</span><h3>技能市场 · 在线聚合</h3><div class="rule"></div>
+      <div class="toolbar"><div class="search-box">${icon('i-search')}<input id="mkQ" placeholder="搜索市场技能…" oninput="marketRender()"></div>
+      <button class="btn btn-sm" onclick="marketRefresh()">${icon('i-refresh')} 刷新聚合源</button></div></div>
+    <div id="mkBody" style="font-size:12px;color:var(--text-3)">加载索引…</div>`;
+  marketRender();
+}
+let _mkItems=null;
+async function marketRefresh(){
+  const box=$('mkBody');if(box)box.innerHTML='<div class="loading-state"><div class="spinner"></div>抓取聚合源（GitHub API，未登录限速 60 次/时）…</div>';
+  const d=await api('/api/market/refresh',{method:'POST',body:{}});
+  _mkItems=null;
+  if(d?.ok){toast('聚合完成 · '+d.total+' 个技能','success');marketRender()}
+  else{if(box)box.textContent=d?.error||'刷新失败';}
+}
+async function marketRender(){
+  const box=$('mkBody');if(!box)return;
+  if(!_mkItems){
+    const d=await api('/api/market/skills'+($('mkQ')?.value?'?q='+encodeURIComponent($('mkQ').value):''));
+    _mkItems=(d&&d.items)||[];
+  }
+  $('mkQ').oninput=debounce(()=>{_mkItems=null;marketRender()},350);
+  const items=_mkItems;
+  box.innerHTML=items.length?'<div class="ledger">'+items.map(x=>'<div class="ledger-row" style="grid-template-columns:1fr 110px 1fr auto">'
+    +'<div><strong style="font-size:12px">'+esc(x.name)+'</strong><div style="font-size:10.5px;color:var(--text-3)">'+esc(x.desc||'').slice(0,90)+'</div></div>'
+    +'<span class="badge '+(x.source==='builtin'?'badge-accent':'badge-info')+'" style="font-size:9px">'+esc(x.source)+'</span>'
+    +'<span class="mono" style="font-size:10px;color:var(--text-4)">'+esc(x.updated||'')+'</span>'
+    +(x.installed?'<span class="badge badge-success">已安装</span>':'<button class="btn btn-sm btn-primary" onclick="marketInstall(\''+esc(x.id)+'\')">安装</button>')
+    +'</div>').join('')+'</div>':'<div class="empty-state">索引为空 · 点「刷新聚合源」从 GitHub 拉取（离线时仍可使用内置 12 技能）</div>';
+}
+async function marketInstall(id){
+  const d=await api('/api/market/install',{method:'POST',body:{id}});
+  if(d?.ok){toast('已安装技能 '+d.id,'success');_mkItems=null;_hut.skills=null;if(currentModule==='agenthut')loadAgentHut(navToken)}
+  else toast(d?.error||'安装失败','error');
 }
 async function skillInstall(id){
   const d=await api('/api/agent/skills/install',{method:'POST',body:{id}});
@@ -4854,6 +4887,42 @@ function toggleLan(){
     else toast(d?.error||'切换失败','error');
   },{iconClass:on?'info':'danger',confirmText:on?'开启':'关闭'});
 }
+async function ghBind(){
+  const t=($('ghToken')||{}).value||'';
+  if(!t.trim()){toast('先粘贴令牌','error');return}
+  const d=await api('/api/gh/verify',{method:'POST',body:{token:t}});
+  if(d?.ok){prefs.set('ghLogin',d.login);const el=$('ghWho');if(el){el.textContent=d.login;el.className='badge badge-success'}toast('已绑定 '+d.login,'success')}
+  else toast(d?.error||'绑定失败','error');
+}
+async function ghDoStar(){
+  const d=await api('/api/gh/star',{method:'POST',body:{repo:'LYL-Z/avenger'}});
+  if(d?.ok){toast('Star 成功，感谢！','success');window.open('https://github.com/LYL-Z/avenger','_blank')}
+  else toast(d?.error||'失败','error');
+}
+async function ghSyncPush(){
+  const o={};Object.keys(localStorage).forEach(k=>{if(k.startsWith('avenger3_'))o[k]=localStorage.getItem(k)});
+  const d=await api('/api/gh/gist-save',{method:'POST',body:{content:JSON.stringify(o)}});
+  if(d?.ok)toast('偏好已同步到私有 Gist','success');else toast(d?.error||'同步失败','error');
+}
+async function ghSyncPull(){
+  const d=await api('/api/gh/gist-load',{method:'POST',body:{}});
+  if(d?.ok&&d.content){
+    try{const o=JSON.parse(d.content);Object.keys(o).forEach(k=>localStorage.setItem(k,o[k]));toast('已恢复 '+Object.keys(o).length+' 项偏好，刷新生效','success')}
+    catch(e){toast('Gist 内容解析失败','error')}
+  }else toast(d?.error||'拉取失败','error');
+}
+function ghFeedback(){
+  showModal(`<div class="modal-title">反馈 Issue</div><div class="modal-body">
+    <input id="ghiTitle" placeholder="标题" style="width:100%;margin-bottom:8px">
+    <textarea id="ghiBody" style="width:100%;height:120px" placeholder="描述问题或建议…（自动附上系统信息）"></textarea>
+  </div><div class="modal-footer"><button class="btn" onclick="closeModal()">取消</button><button class="btn btn-primary" onclick="doGhIssue()">提交</button></div>`);
+}
+async function doGhIssue(){
+  const info='\n\n---\nAvenger V6.5 · '+navigator.userAgent;
+  const d=await api('/api/gh/issue',{method:'POST',body:{title:($('ghiTitle')||{}).value||'用户反馈',body:(($('ghiBody')||{}).value||'')+info}});
+  if(d?.ok){closeModal();toast('Issue 已提交','success');window.open(d.url,'_blank')}
+  else toast(d?.error||'提交失败','error');
+}
 async function newPairCode(){
   const d=await api('/api/pair/code');
   if(d?.ok){const el=$('pairCode');if(el)el.textContent=d.code;toast('配对码已生成，5 分钟内有效','info')}
@@ -4866,6 +4935,8 @@ function loadSettings(token){
   const pLevel=prefs.get('particleLevel', prefs.get('particles',true)?'mid':'off');
   const gLevel=prefs.get('glassLevel','full');
   const curSkin=prefs.get('skin','ember');
+  api('/api/core/tools').catch(()=>{});
+  (async()=>{const w=$('ghWho');if(w&&prefs.get('ghLogin','未绑定')!=='未绑定'){w.textContent=prefs.get('ghLogin');w.className='badge badge-success'}})();
   refreshLan();
   if(prefs.get('lanMode',false))setTimeout(newPairCode,600);
   renderModule('settings',`
@@ -4890,6 +4961,22 @@ function loadSettings(token){
           <label class="checkbox"><input type="checkbox" ${prefs.get('petOn',true)!==false?'checked':''} onchange="prefs.set('petOn',this.checked);mountPet()">显示宠物</label>
           <button class="btn btn-sm" style="margin-left:10px" onclick="prefs.set('petPos',null);mountPet();toast('宠物已归位','info')">${icon('i-refresh')} 复位位置</button>
           <div class="pet-pick" style="margin-top:8px">${Object.entries(PETS).map(([id,p])=>`<button type="button" class="pet-card ${prefs.get('pet','ember')===id?'on':''}" onclick="setPet('${id}')" title="点击领养">${p.svg}<div style="font-size:11.5px;margin-top:3px">${esc(p.name)}</div><div style="font-size:10px;color:var(--text-4)">${esc(p.tag)}</div></button>`).join('')}</div>
+        </div>
+        <div>
+          <div style="font-weight:600;margin-bottom:8px">GitHub 账号打通</div>
+          <p style="font-size:12px;color:var(--text-3);margin-bottom:10px">绑定 Personal Access Token（需 repo 权限，仅存本机 avenger_secrets.json）。绑定后可：一键 Star、偏好/记忆经<b>私有 Gist</b> 跨设备加密同步、Issue 一键反馈。</p>
+          <div class="toolbar" style="flex-wrap:wrap">
+            <input id="ghToken" type="password" placeholder="ghp_… / github_pat_…" style="width:240px" class="mono">
+            <button class="btn btn-sm btn-primary" onclick="ghBind()">验证并绑定</button>
+            <span id="ghWho" class="badge badge-neutral">${prefs.get('ghLogin','未绑定')}</span>
+          </div>
+          <div class="toolbar" style="margin-top:10px;flex-wrap:wrap">
+            <button class="btn btn-sm" onclick="ghDoStar()">${icon('i-star')} 给 Avenger 点 Star</button>
+            <button class="btn btn-sm" onclick="ghSyncPush()">${icon('i-arrow-up')} 偏好上传 Gist</button>
+            <button class="btn btn-sm" onclick="ghSyncPull()">${icon('i-arrow-down')} 从 Gist 恢复</button>
+            <button class="btn btn-sm" onclick="ghFeedback()">${icon('i-alert')} 反馈 Issue</button>
+            <a class="btn btn-sm" href="https://github.com/settings/tokens/new?scopes=repo&description=Avenger" target="_blank" rel="noopener">${icon('i-external')} 生成令牌</a>
+          </div>
         </div>
         <div>
           <div style="font-weight:600;margin-bottom:8px">手机直连电脑</div>
