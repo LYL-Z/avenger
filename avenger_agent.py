@@ -1008,3 +1008,250 @@ def ide_generate(body):
             "# Copilot Instructions\n\n## 项目\n%s：语言 %s；%s。\n\n## 代码风格\n%s\n\n## 验证\n%s\n"
             % (name, langs, stacks, style, ("- `%s`" % test) if test else "- （补充测试命令）"))
     return {"ok": True, "kind": kind, "filename": title, "content": bodytext}
+
+
+# ============================================================
+# 9. V5.1 模型库（对标 FreeToken / LM Studio 的模型目录）
+# ============================================================
+
+MODEL_CATALOG = [
+    dict(family="Qwen3-235B-A22B", org="Alibaba Qwen", params=235, ctx=131072, tags=["CHAT", "MoE"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="qwen3:235b-q4_K_M"),
+                   dict(label="Q3_K_M", fmt="GGUF", bpw=0.48, ollama="qwen3:235b")]),
+    dict(family="Qwen3-32B", org="Alibaba Qwen", params=32, ctx=131072, tags=["CHAT", "FTW"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="qwen3:32b"),
+                   dict(label="Q8_0", fmt="GGUF", bpw=1.06, ollama="qwen3:32b-q8_0")]),
+    dict(family="Qwen3-14B", org="Alibaba Qwen", params=14, ctx=131072, tags=["CHAT"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="qwen3:14b"),
+                   dict(label="Q8_0", fmt="GGUF", bpw=1.06, ollama="qwen3:14b-q8_0"),
+                   dict(label="BF16", fmt="safetensors", bpw=2.0, ollama="qwen3:14b-fp16")]),
+    dict(family="Qwen3-8B", org="Alibaba Qwen", params=8, ctx=131072, tags=["CHAT"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="qwen3:8b"),
+                   dict(label="BF16", fmt="safetensors", bpw=2.0, ollama="qwen3:8b-fp16")]),
+    dict(family="Qwen2.5-Coder-7B", org="Alibaba Qwen", params=7, ctx=32768, tags=["CODE"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="qwen2.5-coder:7b"),
+                   dict(label="Q8_0", fmt="GGUF", bpw=1.06, ollama="qwen2.5-coder:7b-q8_0")]),
+    dict(family="DeepSeek-R1-Distill-32B", org="DeepSeek", params=32, ctx=65536, tags=["REASON"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="deepseek-r1:32b"),
+                   dict(label="Q8_0", fmt="GGUF", bpw=1.06, ollama="deepseek-r1:32b-q8_0")]),
+    dict(family="DeepSeek-R1-Distill-7B", org="DeepSeek", params=7, ctx=32768, tags=["REASON"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="deepseek-r1:7b")]),
+    dict(family="Llama-3.3-70B", org="Meta", params=70, ctx=131072, tags=["CHAT"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="llama3.3:70b"),
+                   dict(label="Q3_K_M", fmt="GGUF", bpw=0.48, ollama="llama3.3:70b-q3_K_M")]),
+    dict(family="Llama-3.1-8B", org="Meta", params=8, ctx=131072, tags=["CHAT"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="llama3.1:8b"),
+                   dict(label="BF16", fmt="safetensors", bpw=2.0, ollama="llama3.1:8b-fp16")]),
+    dict(family="GLM-4-9B", org="Zhipu AI", params=9, ctx=131072, tags=["CHAT"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="glm4:9b")]),
+    dict(family="Phi-4", org="Microsoft", params=14, ctx=16384, tags=["CHAT", "REASON"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="phi4")]),
+    dict(family="Gemma-3-27B", org="Google", params=27, ctx=131072, tags=["CHAT"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="gemma3:27b")]),
+    dict(family="Mistral-Nemo-12B", org="Mistral AI", params=12, ctx=131072, tags=["CHAT"],
+         variants=[dict(label="Q4_K_M", fmt="GGUF", bpw=0.60, ollama="mistral-nemo")]),
+]
+
+
+def _ollama_tags():
+    """探测本机 Ollama 已下载模型（2s 超时，未运行返回 None）。"""
+    try:
+        from urllib.request import urlopen
+        with urlopen("http://127.0.0.1:11434/api/tags", timeout=2) as r:
+            data = json.loads(r.read().decode("utf-8", "replace"))
+        return [str(m.get("name") or "") for m in data.get("models", [])]
+    except Exception:
+        return None
+
+
+def _arch_for(params):
+    for k in sorted(LLM_ARCH.keys(), key=lambda x: float(x[:-1])):
+        if float(k[:-1]) >= params:
+            return LLM_ARCH[k]
+    return LLM_ARCH["70B"]
+
+
+def model_catalog(vram_gb, ram_avail_gb, ctx_k=8):
+    """为每个变体计算体积/显存预估/三态状态：fit(显存充裕) / partial(可内存卸载) / nofit(显存不足)；并标记 Ollama 已下载。"""
+    ollama = _ollama_tags()
+    out = []
+    for fam in MODEL_CATALOG:
+        arch = _arch_for(fam["params"])
+        variants = []
+        for v in fam["variants"]:
+            size_gb = round(fam["params"] * v["bpw"] * 1.08, 1)
+            kv_gb = arch["layers"] * KV_BYTES_PER_TOKEN_PER_LAYER * arch["kv_dim"] * ctx_k * 1000 / (1024 ** 3)
+            vram_est = round(fam["params"] * v["bpw"] + kv_gb + 0.6, 1)
+            if vram_est <= vram_gb * 0.94:
+                status = "fit"
+            elif vram_est <= vram_gb * 0.94 + max(ram_avail_gb - 4, 0) * 0.8:
+                status = "partial"
+            else:
+                status = "nofit"
+            downloaded = False
+            if ollama:
+                base = v["ollama"].split(":")[0]
+                for o in ollama:
+                    if o == v["ollama"] or (o.startswith(base + ":") and base in v["ollama"]):
+                        downloaded = True
+                        break
+            variants.append(dict(label=v["label"], fmt=v["fmt"], size_gb=size_gb, vram_est=vram_est,
+                                 status=status, ollama=v["ollama"], downloaded=downloaded))
+        out.append(dict(family=fam["family"], org=fam["org"], params=fam["params"], ctx=fam["ctx"],
+                        tags=fam["tags"], variants=variants))
+    return out
+
+
+# ============================================================
+# 10. V5.1 AI 使用量追踪 + 使用统计（对标 Claude Code Usage）
+# ============================================================
+
+def _usage_db(base_dir):
+    conn = sqlite3.connect(str(Path(base_dir) / "avenger_notes.db"), timeout=8)
+    conn.execute("CREATE TABLE IF NOT EXISTS ai_usage("
+                 "id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT, provider TEXT, model TEXT, "
+                 "prompt_chars INTEGER, completion_tokens INTEGER)")
+    conn.commit()
+    return conn
+
+
+def usage_add(base_dir, provider, model, prompt_chars, completion_tokens):
+    try:
+        with _MEM_LOCK:
+            conn = _usage_db(base_dir)
+            conn.execute("INSERT INTO ai_usage(ts,provider,model,prompt_chars,completion_tokens) VALUES(?,?,?,?,?)",
+                         (datetime.now().strftime("%Y-%m-%d %H:%M:%S"), (provider or "?")[:40], (model or "?")[:80],
+                          int(prompt_chars or 0), int(completion_tokens or 0)))
+            conn.commit()
+            conn.close()
+    except Exception:
+        pass
+    return {"ok": True}
+
+
+def usage_summary(base_dir):
+    from collections import Counter
+    days = Counter()
+    hours = Counter()
+    models = Counter()
+    total_tokens = 0
+    total_msgs = 0
+    with _MEM_LOCK:
+        try:
+            conn = _usage_db(base_dir)
+            rows = conn.execute("SELECT ts,provider,model,completion_tokens FROM ai_usage").fetchall()
+            conn.close()
+        except Exception:
+            rows = []
+    for ts, provider, model, toks in rows:
+        d = str(ts)[:10]
+        days[d] += 1
+        try:
+            hours[str(ts)[11:13]] += 1
+        except Exception:
+            pass
+        models[(provider or "?", model or "?")] += 1
+        total_msgs += 1
+        total_tokens += int(toks or 0)
+    try:
+        log = Path(base_dir) / "avenger_operations.log"
+        if log.exists():
+            for ln in log.read_text(encoding="utf-8", errors="replace").splitlines()[-4000:]:
+                m = re.match(r"\[(\d{4}-\d{2}-\d{2}) ", ln)
+                if m:
+                    days[m.group(1)] += 1
+    except Exception:
+        pass
+
+    def streaks(dset):
+        from datetime import date, timedelta
+        if not dset:
+            return 0, 0
+        def to_d(s):
+            y, m, dd = s.split("-")
+            return date(int(y), int(m), int(dd))
+        today = date.today()
+        cur = 0
+        check = today if today.strftime("%Y-%m-%d") in dset else today - timedelta(days=1)
+        while check.strftime("%Y-%m-%d") in dset:
+            cur += 1
+            check -= timedelta(days=1)
+        longest = 0
+        run = 0
+        prev = None
+        for s in sorted(dset):
+            dcur = to_d(s)
+            run = run + 1 if (prev is not None and (dcur - prev).days == 1) else 1
+            longest = max(longest, run)
+            prev = dcur
+        return cur, longest
+
+    active_days = sorted(days.keys())
+    cur_streak, long_streak = streaks(set(active_days))
+    peak = max(hours.items(), key=lambda x: x[1])[0] + ":00" if hours else "—"
+    fav = models.most_common(1)[0][0][1] if models else "—"
+    from datetime import date, timedelta
+    today = date.today()
+    heat = []
+    for i in range(118, -1, -1):
+        d = (today - timedelta(days=i)).strftime("%Y-%m-%d")
+        heat.append({"date": d, "count": days.get(d, 0)})
+    return {
+        "sessions": len(active_days),
+        "messages": total_msgs,
+        "total_tokens": total_tokens,
+        "active_days": len(active_days),
+        "current_streak": cur_streak,
+        "longest_streak": long_streak,
+        "peak_hour": peak,
+        "favorite_model": fav,
+        "top_models": [[m[1], c] for m, c in models.most_common(5)],
+        "heatmap": heat,
+    }
+
+
+# ============================================================
+# 11. V5.1 数据集登记库（微调"数据库"闭环）
+# ============================================================
+
+def _ds_db(base_dir):
+    conn = sqlite3.connect(str(Path(base_dir) / "avenger_notes.db"), timeout=8)
+    conn.execute("CREATE TABLE IF NOT EXISTS train_datasets("
+                 "id TEXT PRIMARY KEY, name TEXT, path TEXT, samples INTEGER, est_tokens INTEGER, "
+                 "tags TEXT, note TEXT, created TEXT)")
+    conn.commit()
+    return conn
+
+
+def ds_register(base_dir, body):
+    name = (body.get("name") or "").strip()[:80]
+    if not name:
+        return {"ok": False, "error": "数据集名称不能为空"}
+    did = uuid.uuid4().hex[:10]
+    with _MEM_LOCK:
+        conn = _ds_db(base_dir)
+        conn.execute("INSERT INTO train_datasets(id,name,path,samples,est_tokens,tags,note,created) VALUES(?,?,?,?,?,?,?,?)",
+                     (did, name, (body.get("path") or "")[:400], int(body.get("samples") or 0),
+                      int(body.get("est_tokens") or 0), (body.get("tags") or "")[:120],
+                      (body.get("note") or "")[:200], datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+        conn.commit()
+        conn.close()
+    return {"ok": True, "id": did}
+
+
+def ds_list(base_dir):
+    with _MEM_LOCK:
+        conn = _ds_db(base_dir)
+        rows = conn.execute("SELECT id,name,path,samples,est_tokens,tags,note,created FROM train_datasets ORDER BY created DESC").fetchall()
+        conn.close()
+    return [{"id": r[0], "name": r[1], "path": r[2], "samples": r[3], "est_tokens": r[4],
+             "tags": r[5] or "", "note": r[6] or "", "created": r[7] or ""} for r in rows]
+
+
+def ds_delete(base_dir, did):
+    with _MEM_LOCK:
+        conn = _ds_db(base_dir)
+        conn.execute("DELETE FROM train_datasets WHERE id=?", (did,))
+        conn.commit()
+        conn.close()
+    return {"ok": True}

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="avenger-token" content="%%AVENGER_TOKEN%%">
-<title>Avenger V5.0 — 全栈开发者全景工作台</title>
+<title>Avenger V5.1 — 全栈开发者全景工作台</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23e07856'/%3E%3Ctext x='32' y='44' font-family='Georgia,serif' font-size='36' font-weight='bold' fill='%23fff' text-anchor='middle'%3EA%3C/text%3E%3C/svg%3E">
 <style>
 /* ================================================================
@@ -731,7 +731,7 @@ html.reduce-motion .a-init,html.reduce-auto .a-init{opacity:1;transform:none}
   <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="brand-logo" title="双击折叠侧边栏" ondblclick="toggleSidebarFold()">A</div>
-      <div class="brand-text"><div class="brand-name">Avenger</div><div class="brand-sub">V5.0 · 全景工作台</div></div>
+      <div class="brand-text"><div class="brand-name">Avenger</div><div class="brand-sub">V5.1 · 全景工作台</div></div>
       <button type="button" class="btn btn-sm btn-icon" style="margin-left:auto" onclick="toggleSidebarFold()" title="折叠侧边栏" aria-label="折叠侧边栏"><svg viewBox="0 0 24 24"><use href="#i-sidebar"/></svg></button>
     </div>
     <nav class="sidebar-nav" id="sidebarNav">
@@ -1241,7 +1241,7 @@ function loadAnime(){
   if(_animeLoading)return _animeLoading;
   _animeLoading=new Promise(res=>{
     const s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js';
+    s.src='https://cdn.jsdelivr.net/npm/animejs@4.0.2/lib/anime.iife.min.js';
     s.async=true;
     const done=()=>res(window.anime||null);
     s.onload=done;s.onerror=()=>res(null);
@@ -1258,17 +1258,35 @@ async function choreo(scope){
     els.forEach(el=>{el.style.opacity='1';el.style.transform='none'});return;
   }
   const a=await loadAnime();
+  window.__animeApi=a?{v4:typeof a.animate==='function',raw:a}:null;
   if(!a){
     els.forEach((el,i)=>setTimeout(()=>{el.style.transition='all .45s var(--ease-out)';el.style.opacity='1';el.style.transform='none'},i*45));
     scope.querySelectorAll('[data-count]').forEach(el=>{el.textContent=Number(el.dataset.count||0).toLocaleString()});
     return;
   }
-  a({targets:els,translateY:[16,0],opacity:[0,1],duration:760,delay:a.stagger(42),easing:'spring(1, 80, 12, 6)'});
-  scope.querySelectorAll('[data-count]').forEach(el=>{
-    const target=parseFloat(el.dataset.count)||0;
-    const o={v:0};
-    a({targets:o,v:target,round:1,duration:950,easing:'easeOutExpo',update:()=>{el.textContent=(el.dataset.count.includes('.')?o.v.toFixed(1):Math.round(o.v).toLocaleString())}});
-  });
+  if(window.__animeApi.v4){
+    a.animate(els,{translateY:[16,0],opacity:[0,1],duration:760,delay:a.stagger(42),ease:'outExpo'});
+  }else{
+    a({targets:els,translateY:[16,0],opacity:[0,1],duration:760,delay:a.stagger(42),easing:'spring(1, 80, 12, 6)'});
+  }
+  scope.querySelectorAll('[data-count]').forEach(el=>countUp(el,parseFloat(el.dataset.count)||0));
+}
+function countUp(el,target){
+  const t0=performance.now(),dur=950;
+  const dec=String(el.dataset.count).includes('.')?1:0;
+  (function tick(now){
+    const p=Math.min((now-t0)/dur,1),e=1-Math.pow(1-p,3);
+    const v=target*e;
+    el.textContent=dec?v.toFixed(1):Math.round(v).toLocaleString();
+    if(p<1)requestAnimationFrame(tick);
+  })(t0);
+}
+function popCells(scope){
+  const api=window.__animeApi;if(!api)return;
+  const cells=scope.querySelectorAll('.hm-cell,.pip-pop');
+  if(!cells.length)return;
+  if(api.v4)api.raw.animate(cells,{scale:[.4,1],opacity:[0,1],duration:480,delay:api.raw.stagger(5),ease:'outBack'});
+  else api.raw({targets:cells,scale:[.4,1],opacity:[0,1],duration:480,delay:api.raw.stagger(5),easing:'easeOutBack'});
 }
 function downloadText(name,text){
   const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
@@ -1481,10 +1499,15 @@ function paintDashboard(token,ov,hw,lang,logs,fromCache){
         </div>
       </div>
     </div>
+    <div class="card glass" style="margin-top:16px">
+      <div class="card-head"><div><div class="card-title">${icon('i-activity')} 使用统计</div><div class="card-desc">AI 对话 + 本地操作 · 全部留在本机</div></div><span class="badge badge-accent" id="usageStreak"></span></div>
+      <div class="panel-body" style="padding-top:4px"><div id="usageBody" style="font-size:12px;color:var(--text-3)">加载中…</div></div>
+    </div>
   `,token);
   if(!stillOn('dashboard',token))return;
   observeReveals();
   startDashChart();
+  loadUsageCard(token);
   drawRadar($('dashRadar'),[
     {label:'PATH',v:Math.min(100,h+5)},
     {label:'依赖',v:Math.max(40,h-8)},
@@ -3543,12 +3566,13 @@ async function loadForge(token){
         <div class="st"><b>8</b><span>量化档位</span></div>
       </div>
     </div>
-    <div class="subtabs"><button class="subtab active" onclick="genSub(this,'fg-deploy','fg-pane')">本地部署 · 量化适配</button><button class="subtab" onclick="genSub(this,'fg-train','fg-pane')">训练 · 微调工作流</button></div>
-    <div id="fg-deploy" class="fg-pane"></div>
+    <div class="subtabs"><button class="subtab active" onclick="genSub(this,'fg-models','fg-pane')">模型库</button><button class="subtab" onclick="genSub(this,'fg-deploy','fg-pane')">本地部署 · 量化适配</button><button class="subtab" onclick="genSub(this,'fg-train','fg-pane')">训练 · 微调工作流</button></div>
+    <div id="fg-models" class="fg-pane"></div>
+    <div id="fg-deploy" class="fg-pane" style="display:none"></div>
     <div id="fg-train" class="fg-pane" style="display:none"></div>
   `,token);
   if(!stillOn('forge',token))return;
-  renderDeployPane();renderTrainPane();
+  renderDeployPane();renderTrainPane();renderModelsPane();renderDatasets();
   choreo($('mod-forge'));
 }
 function forgeCalc(){
@@ -3645,7 +3669,12 @@ function renderTrainPane(){
         <div id="tvOut" style="margin-top:12px"></div>
         <div style="font-size:11px;color:var(--text-3);margin-top:6px">估算为经验公式（权重 + 优化器状态 + 激活），实际以框架日志为准。</div>
       </div>
-    </div>`;
+    </div>
+    <div id="dsRegBox" style="display:none" class="card glass-light" style="padding:14px;margin:14px 0 12px">
+      <div class="toolbar"><input id="dsRegName" placeholder="数据集名称，如 qwen-style-1k" style="width:220px"><button class="btn btn-sm btn-primary" onclick="dsRegisterNow()">${icon('i-plus')} 登记上方校验结果</button></div>
+    </div>
+    <div class="hsec"><span class="no">05</span><h3>数据集登记库</h3><div class="rule"></div><span style="font-size:11px;color:var(--text-3)">体检通过的样本库登记在案，形成你的微调数据库</span></div>
+    <div class="ledger" id="dsRegList"></div>`;
 }
 function trainScriptModal(fw){
   const book=((_forge.playbooks||{}).playbooks||[]).find(b=>b.id===fw)||{};
@@ -3674,6 +3703,9 @@ async function dsValidate(){
     </div>
     ${(d.warnings||[]).length?d.warnings.map(w=>`<div class="issue-card mid" style="margin-bottom:6px;padding:9px 12px">${icon('i-alert')} ${esc(w)}</div>`).join(''):`<div class="badge badge-success">${icon('i-check')} 未发现明显问题</div>`}
     <div style="font-size:11.5px;color:var(--text-3);margin-top:8px">结构识别: alpaca×${d.schemas.alpaca} · chat×${d.schemas.messages} · sharegpt×${d.schemas.sharegpt} · 未知×${d.schemas.unknown} · ${esc(d.splits)}</div>`;
+  _dsLast=d;
+  const reg=$('dsRegBox');
+  if(reg)reg.style.display='block';
   choreo($('dsOut'));
 }
 function trainVramCalc(){
@@ -3685,6 +3717,115 @@ function trainVramCalc(){
   const gpu=(hardwareInfo&&hardwareInfo.gpu_mem)?Math.round(hardwareInfo.gpu_mem.mem_total_mb/1024):8;
   $('tvOut').innerHTML=`<div class="card glass-light" style="padding:14px"><div style="display:flex;justify-content:space-between"><b style="font-family:var(--font-serif);font-size:22px">${total.toFixed(1)} GB</b><span class="badge ${total<=gpu*0.94?'badge-success':'badge-danger'}">${total<=gpu*0.94?'本机可训':'超出 GPU '+gpu+'GB'}</span></div><div style="font-size:11.5px;color:var(--text-3);margin-top:6px">${esc(note)}</div></div>`;
 }
+
+/* ================================================================
+   V5.1 · 模型库（对标 FreeToken）+ 使用统计 + 数据集登记
+   ================================================================ */
+let _modelQ='',_modelsData=null,_dsLast=null;
+function hmColor(c){return c<=0?'var(--code-bg)':c<3?'var(--accent-s)':c<7?'rgba(224,120,86,.45)':c<15?'rgba(224,120,86,.72)':'var(--accent)'}
+async function loadUsageCard(token){
+  const d=await api('/api/usage/summary');
+  if(!stillOn('dashboard',token))return;
+  const box=$('usageBody');if(!box)return;
+  if(!d||d.error){box.textContent='暂无数据';return}
+  const fmtTok=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=1e3?(n/1e3).toFixed(1)+'k':String(n);
+  const cells=(d.heatmap||[]).map(h=>'<div class="hm-cell" title="'+h.date+' · '+h.count+'" style="width:11px;height:11px;border-radius:3px;background:'+hmColor(h.count)+'"></div>').join('');
+  box.innerHTML=`
+    <div class="statline" style="margin:0 0 12px;border-top:0;padding-top:0">
+      <div class="st"><b data-count="${d.sessions}">0</b><span>活跃天</span></div>
+      <div class="st"><b data-count="${d.messages}">0</b><span>AI 消息</span></div>
+      <div class="st"><b data-count="${fmtTok(d.total_tokens)}">0</b><span>输出 tokens</span></div>
+      <div class="st"><b data-count="${d.current_streak}">0</b><span>当前连胜</span></div>
+      <div class="st"><b data-count="${d.longest_streak}">0</b><span>最长连胜</span></div>
+      <div class="st"><b style="font-size:18px">${esc(d.peak_hour)}</b><span>峰值时段</span></div>
+      <div class="st"><b style="font-size:18px">${esc(d.favorite_model)}</b><span>常用模型</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(17,13px);grid-auto-flow:column;grid-template-rows:repeat(7,11px);gap:2.5px">${cells}</div>
+    <div style="margin-top:8px;font-size:10.5px;color:var(--text-4)">最近 17 周 · 颜色越深当日活跃越高</div>`;
+  const sb=$('usageStreak');if(sb)sb.textContent='🔥 连胜 '+d.current_streak+' 天';
+  popCells($('usageBody'));
+}
+async function renderModelsPane(){
+  const pane=$('fg-models');if(!pane)return;
+  if(!_modelsData){
+    pane.innerHTML='<div class="loading-state"><div class="spinner"></div>扫描本地模型库与硬件…</div>';
+    _modelsData=await api('/api/agent/models');
+  }
+  const d=_modelsData;
+  if(!d||d.error){pane.innerHTML='<div class="empty-state">'+esc((d&&d.error)||'加载失败')+'</div>';return}
+  const hw=d.hw||{};
+  const vramPct=Math.min(100,Math.round((hw.vram_used||0)/Math.max(hw.vram_total,1)*100));
+  const ramPct=Math.min(100,Math.round((hw.ram_used||0)/Math.max(hw.ram_total,1)*100));
+  const fams=(d.models||[]).filter(f=>!_modelQ||f.family.toLowerCase().includes(_modelQ)||f.org.toLowerCase().includes(_modelQ));
+  const badge=s=>s==='fit'?'<span class="badge badge-success">● 显存充裕</span>':s==='partial'?'<span class="badge badge-warning">● 可内存卸载</span>':'<span class="badge badge-danger">● 显存不足</span>';
+  const rows=fams.map(f=>f.variants.map(v=>{
+    const dl=v.downloaded?'<span class="badge badge-info">已下载</span>':(d.ollama?'':'<span class="badge badge-neutral" title="未检测到 Ollama 运行">离线</span>');
+    const tagHtml=f.tags.map(t=>'<span class="badge badge-accent" style="font-size:9px">'+esc(t)+'</span>').join('');
+    return '<div class="ledger-row pip-pop" style="grid-template-columns:200px 92px 90px 96px 1fr auto auto">'
+      +'<div><strong>'+esc(f.family)+'</strong> <span class="badge badge-purple" style="font-size:9px">'+esc(v.label)+'</span> '+tagHtml+'</div>'
+      +'<span class="mono" style="font-size:11px">'+esc(f.org.split(' ')[0])+'</span>'
+      +'<span class="mono" style="font-size:11px">'+v.size_gb+' GiB</span>'
+      +'<span class="mono" style="font-size:11px">ctx '+(f.ctx>=1024?Math.round(f.ctx/1024)+'k':f.ctx)+'</span>'
+      +'<span style="font-size:11px;color:var(--text-3)">预计显存 '+v.vram_est+' GB</span>'
+      +badge(v.status)+dl
+      +'<span style="display:flex;gap:4px">'
+      +'<button class="btn btn-sm" onclick="modelCmd(\''+v.ollama+'\',\'pull\')" title="复制下载命令">'+icon('i-arrow-down')+' 下载</button>'
+      +'<button class="btn btn-sm btn-primary" onclick="modelCmd(\''+v.ollama+'\',\'run\')" title="复制启动命令">'+icon('i-zap')+' 启动</button>'
+      +'</span></div>';
+  }).join('')).join('');
+  const best=(d.models||[]).map(f=>({f,v:f.variants.find(x=>x.status==='fit')||null})).filter(x=>x.v).sort((a,b)=>b.f.params-a.f.params).slice(0,3);
+  const recs=best.map(({f,v})=>'<div class="card glass-light a-init" style="padding:14px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-family:var(--font-serif)">'+esc(f.family)+' '+esc(v.label)+'</b><span class="badge badge-success">● 显存充裕</span></div>'
+    +'<div class="mono" style="font-size:11px;color:var(--text-3);margin:6px 0">'+esc(f.org)+' · '+v.size_gb+' GiB · 显存 '+v.vram_est+'GB · ctx '+Math.round(f.ctx/1024)+'k'+(v.downloaded?' · 已下载':'')+'</div>'
+    +'<div class="toolbar"><button class="btn btn-sm" onclick="modelCmd(\''+v.ollama+'\',\'pull\')">下载</button><button class="btn btn-sm btn-primary" onclick="modelCmd(\''+v.ollama+'\',\'run\')">启动</button></div>'
+    +'</div>').join('');
+  pane.innerHTML=
+    '<div class="split-64"><div>'
+    +'<div class="hsec"><span class="no">01</span><h3>推荐 · 适合你的硬件</h3><div class="rule"></div><span style="font-size:11px;color:var(--text-3)">基于 nvidia-smi 实测显存 × 0.94 水位</span></div>'
+    +'<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px">'+(recs||'<div class="empty-state">当前显存装不下的模型会标「显存不足」</div>')+'</div>'
+    +'<div class="hsec"><span class="no">02</span><h3>全部模型</h3><div class="rule"></div><div class="search-box">'+icon('i-search')+'<input placeholder="搜索模型…" value="'+esc(_modelQ)+'" oninput="_modelQ=this.value.toLowerCase();renderModelsPane()"></div></div>'
+    +'<div class="ledger"><div class="ledger-head">模型 / 量化 / 体积 / 上下文 / 显存预估 / 状态 / 操作</div>'+rows+'</div>'
+    +'</div><div>'
+    +'<div class="hsec"><span class="no">03</span><h3>本机硬件</h3><div class="rule"></div></div>'
+    +'<div class="card glass-light" style="padding:14px">'
+    +'<div style="font-size:12px;color:var(--text-2);margin-bottom:10px;display:flex;align-items:center;gap:6px">'+icon('i-cpu')+'<span class="mono" style="font-size:11px">'+esc(hw.gpu||'')+'</span></div>'
+    +'<div style="font-size:11px;color:var(--text-3)">系统显存</div>'
+    +'<div class="metric-bar" style="margin:4px 0 8px"><div class="metric-bar-fill" style="width:'+vramPct+'%;background:'+(vramPct>85?'var(--danger)':'var(--accent)')+'"></div></div>'
+    +'<div class="mono" style="font-size:11px">'+(hw.vram_used||0).toFixed(1)+' / '+(hw.vram_total||0).toFixed(1)+' GiB</div>'
+    +'<div style="font-size:11px;color:var(--text-3);margin-top:10px">系统内存</div>'
+    +'<div class="metric-bar" style="margin:4px 0 8px"><div class="metric-bar-fill" style="width:'+ramPct+'%;background:'+(ramPct>85?'var(--danger)':'var(--info)')+'"></div></div>'
+    +'<div class="mono" style="font-size:11px">'+(hw.ram_used||0).toFixed(1)+' / '+(hw.ram_total||0).toFixed(1)+' GiB</div>'
+    +'<div style="margin-top:12px;font-size:11px;color:'+(d.ollama?'var(--success)':'var(--text-3)')+'">● Ollama '+(d.ollama?'运行中 · 已下载模型可一键启动':'未运行 · 启动后可自动识别已下载模型')+'</div>'
+    +'</div>'
+    +'<div class="hsec"><span class="no">04</span><h3>说明</h3><div class="rule"></div></div>'
+    +'<div style="font-size:11.5px;color:var(--text-3);line-height:1.7">体积按 参数×量化位宽×1.08 估算；显存预估含 8k 上下文 KV 缓存与 0.6GB 开销。「可内存卸载」表示超出部分由系统内存承接（速度下降）。下载/启动命令基于 Ollama，一键复制并附接入说明。</div>'
+    +'</div></div>';
+  choreo(pane);popCells(pane);
+}
+function modelCmd(name,mode){
+  const cmd=(mode==='pull'?'ollama pull ':'ollama run ')+name;
+  const extra=mode==='run'?'\n\n# 启动后即为 OpenAI 兼容端点\n# http://127.0.0.1:11434/v1/chat/completions\n# Avenger AI 工坊 → Ollama 本地 即可直接对话':'';
+  copyPath(cmd+extra);
+  toast((mode==='pull'?'下载':'启动')+'命令已复制：'+cmd,'success');
+}
+async function renderDatasets(){
+  const d=await api('/api/train/datasets');
+  const box=$('dsRegList');if(!box)return;
+  const items=(d&&d.items)||[];
+  box.innerHTML=items.length?items.map(x=>'<div class="ledger-row" style="grid-template-columns:1.2fr 1fr 90px 110px auto">'
+    +'<strong>'+esc(x.name)+'</strong><span class="mono" style="font-size:10.5px;color:var(--text-3)">'+esc(x.path||'—')+'</span>'
+    +'<span class="mono" style="font-size:11px">'+x.samples+' 条</span><span class="mono" style="font-size:11px">~'+x.est_tokens+' tok</span>'
+    +'<span style="display:flex;gap:4px"><button class="btn btn-sm" onclick="useDataset(\''+esc(x.path||x.name)+'\')">用于训练</button><button class="btn btn-sm btn-danger" onclick="delDataset(\''+x.id+'\')">'+icon('i-trash')+'</button></span>'
+    +'</div>').join(''):'<div class="empty-state" style="padding:16px">还没有登记的数据集 · 校验后一键登记，形成你的微调数据库</div>';
+}
+async function dsRegisterNow(){
+  if(!_dsLast){toast('请先校验一个数据集','error');return}
+  const nameEl=$('dsRegName');
+  const d=await api('/api/train/datasets/save',{method:'POST',body:{name:(nameEl&&nameEl.value)||('dataset-'+Date.now().toString(36)),path:$('dsText').value.split('\n').length+' 行（内嵌校验）',samples:_dsLast.valid,est_tokens:_dsLast.est_tokens,tags:(_dsLast.schemas.alpaca?'alpaca ':'')+(_dsLast.schemas.messages?'chat':''),note:'由数据集体检器登记'}});
+  if(d?.ok){toast('数据集已登记','success');renderDatasets()}else toast(d?.error||'失败','error');
+}
+async function delDataset(id){await api('/api/train/datasets/delete',{method:'POST',body:{id}});toast('已删除','info');renderDatasets()}
+function useDataset(p){const el=$('tsData');if(el){el.value=p;toast('已在训练配方中引用：'+p,'info')}}
 
 let _memoQ='',_memoTag='all',_memoPreview=false;
 function memoTagList(){

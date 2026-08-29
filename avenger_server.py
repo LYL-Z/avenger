@@ -2381,6 +2381,45 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
                 self._send_json({"error": "agent 模块缺失"}, 500)
             return
 
+        if path == "/api/agent/models":
+            if agentmod:
+                try:
+                    hw = _hw_cache.get("data") or {}
+                    gpu_mem = (hw.get("gpu_mem") or {})
+                    vram_gb = round(float(gpu_mem.get("mem_total_mb") or 0) / 1024, 1) or 8.0
+                    stats = get_system_stats()
+                    ram_total = 0
+                    try:
+                        import ctypes as _c
+                        class _MS(_c.Structure):
+                            _fields_=[("dwLength",_c.c_uint32),("dwMemoryLoad",_c.c_uint32),("ullTotalPhys",_c.c_uint64),("ullAvailPhys",_c.c_uint64),("t1",_c.c_uint64),("t2",_c.c_uint64),("t3",_c.c_uint64),("t4",_c.c_uint64),("t5",_c.c_uint64)]
+                        ms=_MS(); ms.dwLength=_c.sizeof(_MS())
+                        _c.windll.kernel32.GlobalMemoryStatusEx(_c.byref(ms))
+                        ram_total=round(ms.ullTotalPhys/1024**3,1); ram_avail=round(ms.ullAvailPhys/1024**3,1)
+                    except Exception:
+                        ram_total=ram_avail=16.0
+                    gpu_used=round(float(gpu_mem.get("mem_used_mb") or 0)/1024,1)
+                    self._send_json({
+                        "models": agentmod.model_catalog(vram_gb, ram_avail),
+                        "hw": {"gpu": hw.get("gpu") or "GPU", "vram_total": round(vram_gb,1), "vram_used": gpu_used,
+                               "ram_total": ram_total, "ram_used": round(ram_total-ram_avail,1)},
+                        "ollama": agentmod._ollama_tags() is not None,
+                        "ctx_k": 8,
+                    })
+                except Exception as e:
+                    self._send_json({"error": str(e)[:200]}, 500)
+            else:
+                self._send_json({"error": "agent 模块缺失"}, 500)
+            return
+
+        if path == "/api/usage/summary":
+            self._send_json(agentmod.usage_summary(BASE_DIR) if agentmod else {"error": "agent 模块缺失"}, 200 if agentmod else 500)
+            return
+
+        if path == "/api/train/datasets":
+            self._send_json({"items": agentmod.ds_list(BASE_DIR)} if agentmod else {"error": "agent 模块缺失"}, 200 if agentmod else 500)
+            return
+
         if path == "/api/train/playbooks":
             self._send_json(agentmod.train_playbooks() if agentmod else {"error": "agent 模块缺失"}, 200 if agentmod else 500)
             return
@@ -2703,6 +2742,9 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             "/api/agent/context/pack": self._handle_context_pack,
             "/api/agent/harness": self._handle_harness,
             "/api/train/validate": self._handle_train_validate,
+            "/api/train/datasets/save": self._handle_ds_save,
+            "/api/train/datasets/delete": self._handle_ds_delete,
+            "/api/usage/log": self._handle_usage_log,
             "/api/train/script": self._handle_train_script,
             "/api/agent/ide": self._handle_ide_generate,
         }
@@ -3179,7 +3221,17 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
         if not studio:
             self._send_json({"ok": False, "error": "studio 模块缺失"}, 500)
             return
-        self._send_json(studio.ai_chat(BASE_DIR, body or {}, log_op=log_op))
+        r = studio.ai_chat(BASE_DIR, body or {}, log_op=log_op)
+        if r.get("ok") and agentmod:
+            try:
+                u = r.get("usage") or {}
+                msgs = (body or {}).get("messages") or []
+                pchars = sum(len(str(m.get("content") or "")) for m in msgs)
+                toks = u.get("completion_tokens") or max(1, int(len(r.get("content") or "") / 3))
+                agentmod.usage_add(BASE_DIR, r.get("provider"), r.get("model"), pchars, toks)
+            except Exception:
+                pass
+        self._send_json(r)
 
     def _handle_ai_chat_stream(self, body):
         """流式 AI 对话：不设 Content-Length，写完即关连接，前端用 ReadableStream 读取。"""
@@ -3193,17 +3245,27 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("X-Accel-Buffering", "no")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers()
+            sent_chars = 0
             try:
                 for chunk in studio.ai_chat_stream(BASE_DIR, body or {}, log_op=log_op):
                     try:
                         self.wfile.write(chunk.encode("utf-8"))
                         self.wfile.flush()
+                        sent_chars += len(chunk)
                     except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
                         return
             except ValueError as e:
                 try:
                     self.wfile.write(("\n[错误] %s" % e).encode("utf-8"))
                 except OSError:
+                    pass
+            if agentmod and sent_chars:
+                try:
+                    b = body or {}
+                    msgs = b.get("messages") or []
+                    pchars = sum(len(str(m.get("content") or "")) for m in msgs)
+                    agentmod.usage_add(BASE_DIR, b.get("provider"), b.get("model"), pchars, max(1, int(sent_chars / 3)))
+                except Exception:
                     pass
         except (BrokenPipeError, ConnectionAbortedError, ConnectionResetError):
             return
@@ -3321,6 +3383,23 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
         if not self._agent_guard():
             return
         self._send_json(agentmod.train_script_generate(body or {}))
+
+    def _handle_ds_save(self, body):
+        if not self._agent_guard():
+            return
+        self._send_json(agentmod.ds_register(BASE_DIR, body or {}))
+
+    def _handle_ds_delete(self, body):
+        if not self._agent_guard():
+            return
+        self._send_json(agentmod.ds_delete(BASE_DIR, str((body or {}).get("id") or "")))
+
+    def _handle_usage_log(self, body):
+        if not self._agent_guard():
+            return
+        b = body or {}
+        self._send_json(agentmod.usage_add(BASE_DIR, b.get("provider"), b.get("model"),
+                                           b.get("prompt_chars"), b.get("completion_tokens")))
 
     def _handle_ide_generate(self, body):
         if not self._agent_guard():

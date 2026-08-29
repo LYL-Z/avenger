@@ -546,7 +546,8 @@ def ai_chat(base_dir, body, log_op=None):
         text = data.get("message", {}).get("content") or json.dumps(data, ensure_ascii=False)[:2000]
     if log_op:
         log_op("AI 对话 · %s · %s" % (pid, model))
-    return {"ok": True, "content": text, "provider": pid, "model": model}
+    return {"ok": True, "content": text, "provider": pid, "model": model,
+            "usage": (data.get("usage") or {}) if isinstance(data, dict) else {}}
 
 
 def ai_chat_stream(base_dir, body, log_op=None):
