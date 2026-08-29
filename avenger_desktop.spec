@@ -15,6 +15,7 @@ a = Analysis(
         ('PRODUCT.md', '.'),
         ('使用说明.md', '.'),
         ('README.md', '.'),
+        ('vendor', 'vendor'),
     ],
     hiddenimports=['webview', 'avenger_server', 'avenger_studio', 'avenger_agent', 'avenger_core'],
     hookspath=[],
@@ -28,9 +29,8 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='Avenger',
     debug=False,
     bootloader_ignore_signals=False,
@@ -40,4 +40,12 @@ exe = EXE(
     runtime_tmpdir=None,
     console=False,
     icon=None,
+)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    name='Avenger',
 )

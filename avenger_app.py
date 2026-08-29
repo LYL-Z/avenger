@@ -36,15 +36,23 @@ def start_server():
         os.environ["AVENGER_HOME"] = home
         meipass = getattr(sys, "_MEIPASS", "")
         if meipass:
+            import shutil
             for fn in ("avenger.html", "avenger_server.py", "avenger_studio.py",
                        "avenger_agent.py", "avenger_core.py", "avenger_hud.py", "avenger_mcp_server.py"):
                 src, dst = os.path.join(meipass, fn), os.path.join(home, fn)
-                if os.path.exists(src) and not os.path.exists(dst):
+                if os.path.exists(src):
                     try:
-                        with open(src, "rb") as f1, open(dst, "wb") as f2:
-                            f2.write(f1.read())
+                        shutil.copyfile(src, dst)
                     except Exception:
                         pass
+            vsrc, vdst = os.path.join(meipass, "vendor"), os.path.join(home, "vendor")
+            if os.path.isdir(vsrc):
+                try:
+                    os.makedirs(vdst, exist_ok=True)
+                    for fn in os.listdir(vsrc):
+                        shutil.copyfile(os.path.join(vsrc, fn), os.path.join(vdst, fn))
+                except Exception:
+                    pass
         proc = subprocess.Popen([sys.executable, "--server-child"], env=dict(os.environ))
     else:
         proc = subprocess.Popen([sys.executable, str(BASE / "avenger_server.py"), "--no-browser", "--no-hud"],

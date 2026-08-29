@@ -1154,14 +1154,14 @@ function loadParticlesScript(){
   return new Promise(resolve=>{
     if(typeof tsParticles!=='undefined'){resolve(true);return}
     const s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/tsparticles@2.12.0/tsparticles.bundle.min.js';
+    s.src='/vendor/tsparticles.bundle.min.js';s.onerror=()=>{const s2=document.createElement('script');s2.src='https://cdn.jsdelivr.net/npm/tsparticles@2.12.0/tsparticles.bundle.min.js';s2.onload=done;s2.onerror=()=>res(null);document.head.appendChild(s2);};
     s.async=true;
     let done=false;
     const finish=v=>{if(!done){done=true;resolve(v)}};
     s.onload=()=>finish(true);
     s.onerror=()=>finish(false);
     document.head.appendChild(s);
-    setTimeout(()=>finish(typeof tsParticles!=='undefined'),7000);
+    setTimeout(()=>finish(typeof tsParticles!=='undefined'),3500);
   });
 }
 function stopMiniParticles(){
@@ -1280,7 +1280,7 @@ function loadAnime(){
   if(_animeLoading)return _animeLoading;
   _animeLoading=new Promise(res=>{
     const s=document.createElement('script');
-    s.src='https://cdn.jsdelivr.net/npm/animejs@4.0.2/lib/anime.iife.min.js';
+    s.src='/vendor/anime.min.js';s.onerror=()=>{const s2=document.createElement('script');s2.src='https://cdn.jsdelivr.net/npm/animejs@3.2.2/lib/anime.min.js';s2.onload=()=>res(window.anime||null);s2.onerror=()=>res(null);document.head.appendChild(s2);};
     s.async=true;
     const done=()=>res(window.anime||null);
     s.onload=done;s.onerror=()=>res(null);
@@ -1327,12 +1327,12 @@ function loadThree(){
   if(_threeLoading)return _threeLoading;
   _threeLoading=new Promise(res=>{
     const sc=document.createElement('script');
-    sc.src='https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.min.js';
+    sc.src='/vendor/three.min.js';sc.onerror=()=>{const s2=document.createElement('script');s2.src='https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js';s2.onload=done;s2.onerror=()=>res(null);document.head.appendChild(s2);};
     sc.async=true;
     const done=()=>res(window.THREE||null);
     sc.onload=done;sc.onerror=()=>res(null);
     document.head.appendChild(sc);
-    setTimeout(done,8000);
+    setTimeout(done,4000);
   });
   return _threeLoading;
 }
@@ -3228,6 +3228,13 @@ async function aiTestConn(btn){
   if(d&&d.ok)toast('连接正常 · 延迟 '+d.latency_ms+'ms','success');
   else toast((d&&d.error)||'连接失败','error');
 }
+async function ollamaModels(){
+  try{
+    const r=await fetch('http://127.0.0.1:11434/api/tags',{signal:AbortSignal.timeout(1500)});
+    const d=await r.json();
+    return (d.models||[]).map(m=>m.name);
+  }catch(e){return null}
+}
 async function loadStudio(token){
   const cfg=await api('/api/ai/config');
   if(!stillOn('studio',token))return;
@@ -3272,6 +3279,18 @@ async function loadStudio(token){
   if(active==='custom'){const u=providers.find(p=>p.id==='custom');if(u&&$('aiUrl'))$('aiUrl').value=u.base_url||''}
   const tv=$('aiTemp');
   if(tv)tv.oninput=()=>{const v=$('aiTempVal');if(v)v.textContent=(tv.value/10).toFixed(1)};
+  ollamaModels().then(names=>{
+    if(!names||!names.length)return;
+    const input=$('aiModel');
+    if(input&&!names.includes(input.value)){
+      input.value=names[0];
+      input.setAttribute('list','ollamaList');
+      let dl=document.getElementById('ollamaList');
+      if(!dl){dl=document.createElement('datalist');dl.id='ollamaList';document.body.appendChild(dl)}
+      dl.innerHTML=names.map(n=>'<option value="'+esc(n)+'">').join('');
+      toast('检测到 Ollama 模型 '+names.length+' 个，已自动选用 '+names[0],'info');
+    }
+  });
   renderAiLog();
 }
 function aiSelectProv(){
@@ -4258,13 +4277,13 @@ function loadKaTeX(){
   if(window.katex)return Promise.resolve(window.katex);
   return new Promise(res=>{
     const css=document.createElement('link');css.rel='stylesheet';
-    css.href='https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
+    css.href='/vendor/katex.min.css';
     document.head.appendChild(css);
     const sc=document.createElement('script');
-    sc.src='https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';
+    sc.src='/vendor/katex.min.js';sc.onerror=()=>{const s2=document.createElement('script');s2.src='https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';s2.onload=()=>res(window.katex||null);s2.onerror=()=>res(null);document.head.appendChild(s2);};
     sc.onload=()=>res(window.katex||null);sc.onerror=()=>res(null);
     document.head.appendChild(sc);
-    setTimeout(()=>res(window.katex||null),7000);
+    setTimeout(()=>res(window.katex||null),3500);
   });
 }
 async function loadLabs(token){
@@ -5539,6 +5558,7 @@ async function fillPluginManifest(){
   (function pollScan(){
     api('/api/scan-status').then(s=>{
       if(s&&s.scanning){setTimeout(pollScan,900);return}
+      if(true){}
       loadEnvironments().then(()=>{if(currentModule==='dashboard'||currentModule==='python'||currentModule==='packages')switchModule(currentModule)});
     });
   })();

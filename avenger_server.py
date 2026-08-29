@@ -2319,6 +2319,22 @@ class AvengerHandler(http.server.BaseHTTPRequestHandler):
             self._serve_html()
             return
 
+        if path.startswith("/vendor/"):
+            fn = os.path.basename(path)
+            fp = BASE_DIR / "vendor" / fn
+            if fp.is_file():
+                ctype = {"js":"application/javascript","css":"text/css"}.get(fn.rsplit(".",1)[-1], "application/octet-stream")
+                self.send_response(200)
+                self.send_header("Content-Type", ctype + "; charset=utf-8")
+                self.send_header("Content-Length", str(fp.stat().st_size))
+                self.send_header("Cache-Control", "max-age=86400")
+                self.end_headers()
+                with open(fp, "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self._send_json({"error": "not found"}, 404)
+            return
+
         if path == "/api/heartbeat":
             _last_heartbeat = time.time()
             self._send_json({"ok": True})
