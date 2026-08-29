@@ -784,6 +784,7 @@ html.reduce-motion .a-init,html.reduce-auto .a-init{opacity:1;transform:none}
       <button type="button" class="nav-item" data-module="memctx"><svg viewBox="0 0 24 24"><use href="#i-layers"/></svg><span class="nav-label">记忆 · 上下文</span></button>
       <button type="button" class="nav-item" data-module="forge"><svg viewBox="0 0 24 24"><use href="#i-cpu"/></svg><span class="nav-label">模型工坊</span></button>
       <button type="button" class="nav-item" data-module="memo"><svg viewBox="0 0 24 24"><use href="#i-save"/></svg><span class="nav-label">开发者备忘录</span></button>
+      <button type="button" class="nav-item" data-module="labs"><svg viewBox="0 0 24 24"><use href="#i-diamond"/></svg><span class="nav-label">科学实验室</span></button>
       <button type="button" class="nav-item" data-module="dojo"><svg viewBox="0 0 24 24"><use href="#i-code"/></svg><span class="nav-label">练习场</span></button>
       <button type="button" class="nav-item" data-module="learn"><svg viewBox="0 0 24 24"><use href="#i-keyboard"/></svg><span class="nav-label">速查学习</span></button>
       <button type="button" class="nav-item" data-module="database" data-plugin="database"><svg viewBox="0 0 24 24"><use href="#i-database"/></svg><span class="nav-label">数据库</span><span class="nav-kbd">5</span></button>
@@ -1087,7 +1088,7 @@ function toggleEyeCare(){
 if(prefs.get('eyeCare',false)){document.body.classList.add('eye-care');eyeCareOn=true}
 
 /* 模块导航 — 用 token 丢弃过期异步渲染，避免侧边栏“点了没反应” */
-const MODULE_TITLES={dashboard:'总览驾驶舱',python:'Python 环境管理',languages:'多语言运行时',packages:'包管理器',toolbox:'开发者工具箱',studio:'AI 工坊',agentws:'Agent 工作台 · 自研内核',agenthut:'Agent 工坊 · Skills / MCP / Harness',memctx:'Agent 记忆与代码库上下文',forge:'模型工坊 · 部署量化与训练微调',memo:'开发者备忘录',dojo:'编程练习场',learn:'速查学习',database:'数据库管理',git:'Git 可视化辅助',ports:'端口与进程',hardware:'硬件监控',health:'编程健康护航',plugins:'插件市场',settings:'设置'};
+const MODULE_TITLES={dashboard:'总览驾驶舱',python:'Python 环境管理',languages:'多语言运行时',packages:'包管理器',toolbox:'开发者工具箱',studio:'AI 工坊',agentws:'Agent 工作台 · 自研内核',agenthut:'Agent 工坊 · Skills / MCP / Harness',memctx:'Agent 记忆与代码库上下文',forge:'模型工坊 · 部署量化与训练微调',memo:'开发者备忘录',labs:'科学实验室 · 数理化生历',dojo:'编程练习场',learn:'速查学习',database:'数据库管理',git:'Git 可视化辅助',ports:'端口与进程',hardware:'硬件监控',health:'编程健康护航',plugins:'插件市场',settings:'设置'};
 let currentModule='dashboard',navToken=0;
 function stillOn(name,token){return currentModule===name&&navToken===token}
 function toggleSidebarFold(){
@@ -1130,7 +1131,7 @@ function switchModule(name){
     dashboard:loadDashboard,python:loadPythonModule,languages:loadLanguages,packages:loadPackagesModule,
     hardware:loadHardwareModule,ports:loadPorts,toolbox:initToolbox,health:initHealth,
     plugins:loadPlugins,git:loadGit,database:loadDatabase,settings:loadSettings,
-    studio:loadStudio,agentws:loadAgentWS,agenthut:loadAgentHut,memctx:loadMemCtx,forge:loadForge,memo:loadMemo,dojo:loadDojo,learn:loadLearn
+    studio:loadStudio,agentws:loadAgentWS,agenthut:loadAgentHut,memctx:loadMemCtx,forge:loadForge,memo:loadMemo,labs:loadLabs,dojo:loadDojo,learn:loadLearn
   };
   Avenger._plugins.forEach(p=>{if(p.module===name&&typeof p.render==='function')loaders[name]=p.render});
   const fn=loaders[name];
@@ -1317,6 +1318,94 @@ function countUp(el,target){
     el.textContent=dec?v.toFixed(1):Math.round(v).toLocaleString();
     if(p<1)requestAnimationFrame(tick);
   })(t0);
+}
+/* ---- 3D 液态玻璃背景层（Three.js 动态加载 + FPS 看门狗降级） ---- */
+let _threeLoading=null,_bg3d=null;
+function loadThree(){
+  if(window.THREE)return Promise.resolve(window.THREE);
+  if(_threeLoading)return _threeLoading;
+  _threeLoading=new Promise(res=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.min.js';
+    sc.async=true;
+    const done=()=>res(window.THREE||null);
+    sc.onload=done;sc.onerror=()=>res(null);
+    document.head.appendChild(sc);
+    setTimeout(done,8000);
+  });
+  return _threeLoading;
+}
+async function init3DBg(){
+  if(!prefs.get('bg3d',true))return;
+  const THREE=await loadThree();
+  if(!THREE||prefs.get('bg3d',true)===false)return;
+  try{
+    const host=document.createElement('div');
+    host.id='bg3d';
+    host.style.cssText='position:fixed;inset:0;z-index:1;pointer-events:none';
+    document.body.insertBefore(host,document.body.firstChild);
+    const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,powerPreference:'low-power'});
+    renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.6));
+    renderer.setSize(innerWidth,innerHeight);
+    host.appendChild(renderer.domElement);
+    const scene=new THREE.Scene();
+    const camera=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,0.1,100);
+    camera.position.z=13;
+    scene.add(new THREE.AmbientLight(0xffffff,.7));
+    const key=new THREE.DirectionalLight(0xffffff,1.1);key.position.set(5,6,8);scene.add(key);
+    const rim=new THREE.PointLight(0xe07856,14,40);rim.position.set(-8,-4,6);scene.add(rim);
+    const accent=new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#e07856');
+    const geos=[new THREE.IcosahedronGeometry(1.6,0),new THREE.TorusGeometry(1.2,0.42,24,48),new THREE.OctahedronGeometry(1.5,0),new THREE.SphereGeometry(1.3,32,32)];
+    const mats=[];
+    const blobs=[];
+    for(let i=0;i<9;i++){
+      const mat=new THREE.MeshPhysicalMaterial({
+        color:accent.clone().lerp(new THREE.Color(0xffffff),0.25+i*0.06),
+        metalness:0.05,roughness:0.12,transmission:0.92,thickness:2.2,
+        ior:1.35,clearcoat:1,clearcoatRoughness:0.08,transparent:true,opacity:0.92});
+      mats.push(mat);
+      const m=new THREE.Mesh(geos[i%geos.length],mat);
+      m.position.set((Math.random()-0.5)*16,(Math.random()-0.5)*9,(Math.random()-0.5)*6-1);
+      m.rotation.set(Math.random()*3,Math.random()*3,Math.random()*3);
+      m.userData={rx:(Math.random()-0.5)*0.004,ry:(Math.random()-0.5)*0.005,fl:Math.random()*6.28,sp:0.0006+Math.random()*0.0008};
+      scene.add(m);blobs.push(m);
+    }
+    let mx=0,my=0,hidden=false,frames=0,lastT=performance.now(),lowN=0,raf=null;
+    function onMove(e){mx=(e.clientX/innerWidth-0.5)*1.2;my=(e.clientY/innerHeight-0.5)*0.8}
+    function onVis(){hidden=document.hidden}
+    function onResize(){renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix()}
+    addEventListener('mousemove',onMove,{passive:true});
+    addEventListener('resize',onResize);
+    document.addEventListener('visibilitychange',onVis);
+    function frame(t){
+      raf=requestAnimationFrame(frame);
+      frames++;
+      if(t-lastT>1000){
+        const fps=frames;frames=0;lastT=t;
+        if(fps<38){if(++lowN>=3){destroy3D();return}}
+        else lowN=0;
+      }
+      if(hidden)return;
+      blobs.forEach(b=>{
+        b.rotation.x+=b.userData.rx;b.rotation.y+=b.userData.ry;
+        b.userData.fl+=b.userData.sp;
+        b.position.y+=Math.sin(b.userData.fl)*0.004;
+      });
+      camera.position.x+=(mx-camera.position.x)*0.03;
+      camera.position.y+=(-my-camera.position.y)*0.03;
+      camera.lookAt(0,0,0);
+      renderer.render(scene,camera);
+    }
+    function destroy3D(){
+      if(raf)cancelAnimationFrame(raf);
+      removeEventListener('mousemove',onMove);removeEventListener('resize',onResize);
+      document.removeEventListener('visibilitychange',onVis);
+      try{renderer.dispose()}catch(e){}
+      host.remove();_bg3d=null;
+    }
+    raf=requestAnimationFrame(frame);
+    _bg3d={destroy:destroy3D};
+  }catch(e){}
 }
 function popCells(scope){
   const api=window.__animeApi;if(!api)return;
@@ -1565,7 +1654,7 @@ function startDashChart(){
     ctx.setTransform(1,0,0,1,0,0);ctx.scale(devicePixelRatio,devicePixelRatio);
   }
   resize();window.addEventListener('resize',resize);_chartResizers.push(resize);
-  canvas.onmousemove=e=>{const r=canvas.getBoundingClientRect();dashHover=(e.clientX-r.left)/Math.max(r.width,1);};
+  _sparkReveal=0;(function rv(){_sparkReveal=Math.min(1,_sparkReveal+0.045);setTimeout(()=>{},0);if(_sparkReveal<1)setTimeout(rv,28)})(),canvas.onmousemove=e=>{const r=canvas.getBoundingClientRect();dashHover=(e.clientX-r.left)/Math.max(r.width,1);};
   canvas.onmouseleave=()=>{dashHover=null};
   async function tick(){
     const s=await api('/api/system/stats');
@@ -1586,8 +1675,10 @@ function startDashChart(){
   tick();
 }
 function stopDashChart(){if(dashChartRAF){clearTimeout(dashChartRAF);dashChartRAF=null}}
+let _sparkReveal=1;
 function drawSpark(ctx,canvas,series,hover){
   const w=canvas.offsetWidth,h=canvas.offsetHeight,padL=28,padB=18,padT=18,padR=8;
+  const reveal=Math.min(1,_sparkReveal);
   ctx.clearRect(0,0,w,h);
   ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--border')||'#888';
   ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--text-3')||'#888';
@@ -1598,7 +1689,8 @@ function drawSpark(ctx,canvas,series,hover){
     ctx.fillText(String(100-g*25),2,y+3);
   }
   series.forEach((s,si)=>{
-    const data=s.data;if(data.length<2)return;
+    let data=s.data;if(data.length<2)return;
+    if(reveal<1)data=data.slice(0,Math.max(2,Math.round(data.length*reveal)));
     ctx.beginPath();
     data.forEach((v,i)=>{
       const x=padL+(i/Math.max(59,data.length-1))*(w-padL-padR);
@@ -1672,6 +1764,7 @@ const cmCommands=[
   {icon:'i-layers',label:'Agent 记忆与上下文',mod:'memctx'},
   {icon:'i-cpu',label:'模型工坊 · 部署量化 / 训练微调',mod:'forge'},
   {icon:'i-save',label:'开发者备忘录',mod:'memo'},
+  {icon:'i-diamond',label:'科学实验室 · 数理化生历',mod:'labs'},
   {icon:'i-code',label:'编程练习场',mod:'dojo'},
   {icon:'i-keyboard',label:'速查学习',mod:'learn'},
   {icon:'i-database',label:'数据库管理',mod:'database',shortcut:'Ctrl+5'},
@@ -4081,6 +4174,404 @@ async function awMcpStop(name){
   loadAgentWS(navToken);
 }
 
+/* ================================================================
+   V6.0 · 科学实验室（数 / 化 / 生 / 物 / 历）
+   ================================================================ */
+let _labKaTeX=null;
+function loadKaTeX(){
+  if(window.katex)return Promise.resolve(window.katex);
+  return new Promise(res=>{
+    const css=document.createElement('link');css.rel='stylesheet';
+    css.href='https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css';
+    document.head.appendChild(css);
+    const sc=document.createElement('script');
+    sc.src='https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js';
+    sc.onload=()=>res(window.katex||null);sc.onerror=()=>res(null);
+    document.head.appendChild(sc);
+    setTimeout(()=>res(window.katex||null),7000);
+  });
+}
+async function loadLabs(token){
+  renderModule('labs',`
+    <div class="masthead glass a-init">
+      <div class="kicker">Science Lab</div>
+      <h1>科学实验室</h1>
+      <p class="lede">数学 · 化学 · 生物 · 物理 · 历史五域工具舱。零依赖优先：周期表 118 元素、DNA 翻译、函数绘图全部内置离线可用；LaTeX 渲染联网时自动加载 KaTeX。</p>
+    </div>
+    <div class="subtabs">
+      <button class="subtab active" onclick="genSub(this,'lab-math','lab-pane')">数学</button>
+      <button class="subtab" onclick="genSub(this,'lab-chem','lab-pane')">化学</button>
+      <button class="subtab" onclick="genSub(this,'lab-bio','lab-pane')">生物</button>
+      <button class="subtab" onclick="genSub(this,'lab-phy','lab-pane')">物理</button>
+      <button class="subtab" onclick="genSub(this,'lab-his','lab-pane')">历史</button>
+    </div>
+    <div id="lab-math" class="lab-pane"></div>
+    <div id="lab-chem" class="lab-pane" style="display:none"></div>
+    <div id="lab-bio" class="lab-pane" style="display:none"></div>
+    <div id="lab-phy" class="lab-pane" style="display:none"></div>
+    <div id="lab-his" class="lab-pane" style="display:none"></div>
+  `,token);
+  if(!stillOn('labs',token))return;
+  labMath();labChem();labBio();labPhy();labHis();
+  choreo($('mod-labs'));
+}
+/* ---------- 数学 ---------- */
+function labMath(){
+  const el=$('lab-math');if(!el)return;
+  el.innerHTML=`
+    <div class="split-64">
+      <div>
+        <div class="hsec"><span class="no">01</span><h3>函数绘图</h3></div>
+        <div class="toolbar" style="margin-bottom:8px"><input id="fnExpr" class="mono" style="flex:1" value="sin(x)*x/2" placeholder="f(x)，如 sin(x)*x 或 x^2-3"><select id="fnRange" style="width:100px"><option value="10">x ∈ ±10</option><option value="6">±6</option><option value="20">±20</option><option value="2">±2</option></select><button class="btn btn-sm btn-primary" onclick="fnPlot()">绘制</button></div>
+        <canvas id="fnCanvas" width="720" height="280" style="width:100%;height:280px;background:var(--code-bg);border-radius:12px"></canvas>
+        <div style="font-size:11px;color:var(--text-3);margin-top:6px">支持 + - * / ^ () 与 sin cos tan asin acos atan sqrt log abs exp floor round；常量 pi e。</div>
+        <div class="hsec"><span class="no">02</span><h3>矩阵计算</h3></div>
+        <div class="toolbar" style="margin-bottom:8px"><input id="mxA" class="mono" style="width:180px" value="1,2;3,4" placeholder="矩阵A: 1,2;3,4"><select id="mxOp" style="width:110px"><option value="det">行列式</option><option value="mul">A×B</option><option value="add">A+B</option></select><input id="mxB" class="mono" style="width:180px" value="5,6;7,8" placeholder="矩阵B"><button class="btn btn-sm btn-primary" onclick="mxCalc()">计算</button></div>
+        <pre id="mxOut" class="mono" style="font-size:12px;background:var(--code-bg);border-radius:10px;padding:10px;min-height:40px;white-space:pre-wrap"></pre>
+      </div>
+      <div>
+        <div class="hsec"><span class="no">03</span><h3>LaTeX 渲染</h3></div>
+        <textarea id="texIn" style="width:100%;height:90px;font-family:var(--font-mono);font-size:12px">\\int_0^\\infty e^{-x^2}dx = \\frac{\\sqrt{\\pi}}{2}</textarea>
+        <button class="btn btn-sm btn-primary" style="margin:8px 0" onclick="texRender()">${icon('i-zap')} 渲染</button>
+        <div id="texOut" style="min-height:70px;background:var(--code-bg);border-radius:10px;padding:12px;font-size:18px;overflow:auto"></div>
+        <div class="hsec"><span class="no">04</span><h3>单位换算</h3></div>
+        <div class="toolbar" style="flex-wrap:wrap"><select id="ucCat" onchange="ucFill()" style="width:110px"></select><input id="ucVal" type="number" value="1" style="width:90px"><select id="ucFrom" style="width:120px"></select><span style="color:var(--text-3)">→</span><select id="ucTo" style="width:120px"></select></div>
+        <div id="ucOut" class="mono" style="margin-top:8px;font-size:14px;color:var(--accent)"></div>
+      </div>
+    </div>`;
+  fnPlot();ucInit();texRender();
+  $('fnExpr').oninput=debounce(fnPlot,500);$('fnRange').onchange=fnPlot;
+}
+function fnSafe(expr){
+  let e=expr.replace(/\^/g,'**');
+  const ids=e.match(/[a-zA-Z_]+/g)||[];
+  const allow=new Set(['x','sin','cos','tan','asin','acos','atan','sqrt','log','abs','exp','floor','round','pi','E','PI']);
+  for(const i of ids){if(!allow.has(i))return null}
+  return e;
+}
+function fnPlot(){
+  const c=$('fnCanvas');if(!c)return;
+  const ctx=c.getContext('2d'),W=c.width,H=c.height,R=parseFloat($('fnRange').value)||10;
+  const raw=($('fnExpr').value||'').trim();
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle='rgba(128,128,128,.3)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();
+  const e=fnSafe(raw);
+  if(!e){ctx.fillStyle='#d06058';ctx.font='13px sans-serif';ctx.fillText('含不允许的符号（仅 x 与数学函数）',20,30);return}
+  let f;try{f=new Function('x','with(Math){return ('+e+')}')}catch(err){ctx.fillStyle='#d06058';ctx.font='13px sans-serif';ctx.fillText('表达式错误',20,30);return}
+  const sx=W/(2*R),sy=H/(2*R)*0.8;
+  const px=x=>W/2+x*sx, py=y=>H/2-y*sy;
+  const accent=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#e07856';
+  const axes=()=>{
+    ctx.clearRect(0,0,W,H);
+    ctx.strokeStyle='rgba(128,128,128,.3)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,H/2);ctx.lineTo(W,H/2);ctx.moveTo(W/2,0);ctx.lineTo(W/2,H);ctx.stroke();
+    ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--text-3');ctx.font='11px sans-serif';
+    ctx.fillText('f(x) = '+raw,14,20);
+  };
+  ctx.lineWidth=2;
+  let rev=0;
+  (function draw(){
+    rev=Math.min(1,rev+0.05);
+    axes();
+    ctx.strokeStyle=accent;ctx.beginPath();
+    const lim=Math.max(2,Math.floor(W*rev));
+    let started=false;
+    for(let X=0;X<lim;X++){
+      const x=(X-W/2)/sx, y=f(x);
+      if(Number.isFinite(y)){const Y=py(y);started?(ctx.lineTo(X,Y)):(ctx.moveTo(X,Y),started=true)}
+      else started=false;
+    }
+    ctx.stroke();
+    if(rev<1)requestAnimationFrame(draw);
+  })();
+  ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--text-3');ctx.font='11px sans-serif';
+  ctx.fillText('f(x) = '+raw,14,20);
+}
+function mxParse(t){return t.split(';').map(r=>r.split(/[,，\s]+/).filter(Boolean).map(Number))}
+function mxCalc(){
+  const op=$('mxOp').value,A=mxParse($('mxA').value),B=mxParse($('mxB').value),out=$('mxOut');
+  const fmt=M=>M.map(r=>r.map(x=>(+x.toFixed(4))).join('  ')).join('\n');
+  try{
+    if(op==='det'){
+      if(A.length===2&&A[0].length===2){out.textContent='det(A) = '+(A[0][0]*A[1][1]-A[0][1]*A[1][0])}
+      else if(A.length===3&&A.every(r=>r.length===3)){out.textContent='det(A) = '+(A[0][0]*(A[1][1]*A[2][2]-A[1][2]*A[2][1])-A[0][1]*(A[1][0]*A[2][2]-A[1][2]*A[2][0])+A[0][2]*(A[1][0]*A[2][1]-A[1][1]*A[2][0]))}
+      else out.textContent='行列式仅支持 2×2 / 3×3';
+    }else{
+      if(A[0].length!==B.length){out.textContent='维度不匹配：A 列数需等于 B 行数';return}
+      const C=A.map((r,i)=>B[0].map((_,j)=>r.reduce((s,v,k)=>s+v*B[k][j],0)));
+      out.textContent=fmt(C);
+    }
+  }catch(e){out.textContent='错误: '+e.message}
+}
+async function texRender(){
+  const out=$('texOut');if(!out)return;
+  const tex=($('texIn')||{}).value||'';
+  const K=await loadKaTeX();
+  if(K){try{K.render(tex,out,{displayMode:true,throwOnError:false});return}catch(e){}}
+  out.textContent='（KaTeX 未加载——离线模式）原始 LaTeX：\n'+tex;
+}
+const UC={
+  '长度':{'米':1,'千米':1000,'厘米':0.01,'毫米':0.001,'英里':1609.344,'英尺':0.3048,'英寸':0.0254,'海里':1852},
+  '质量':{'千克':1,'克':0.001,'吨':1000,'磅':0.45359237,'盎司':0.028349523,'斤(市)':0.5},
+  '数据':{'B':1,'KB':1024,'MB':1048576,'GB':1073741824,'TB':1099511627776,'bit':0.125},
+  '面积':{'平方米':1,'平方千米':1e6,'公顷':10000,'亩':666.6667,'平方英尺':0.09290304},
+  '速度':{'米/秒':1,'千米/时':0.2777778,'英里/时':0.44704,'节':0.5144444},
+  '温度':{'摄氏度':'C','华氏度':'F','开尔文':'K'}
+};
+function ucInit(){
+  const cat=$('ucCat');if(!cat)return;
+  cat.innerHTML=Object.keys(UC).map(k=>'<option>'+k+'</option>').join('');
+  ucFill();
+  $('ucVal').oninput=ucCalc;$('ucFrom').onchange=ucCalc;$('ucTo').onchange=ucCalc;
+}
+function ucFill(){
+  const cat=$('ucCat').value,units=Object.keys(UC[cat]);
+  $('ucFrom').innerHTML=units.map(u=>'<option>'+u+'</option>').join('');
+  $('ucTo').innerHTML=units.map((u,i)=>'<option '+(i===1?'selected':'')+'>'+u+'</option>').join('');
+  ucCalc();
+}
+function ucCalc(){
+  const cat=$('ucCat').value,f=$('ucFrom').value,t=$('ucTo').value,v=parseFloat($('ucVal').value)||0;
+  if(cat==='温度'){
+    let c=v;
+    if(f==='华氏度')c=(v-32)*5/9; if(f==='开尔文')c=v-273.15;
+    let r=c;
+    if(t==='华氏度')r=c*9/5+32; if(t==='开尔文')r=c+273.15;
+    $('ucOut').textContent=v+' '+f+' = '+r.toFixed(2)+' '+t;
+    return;
+  }
+  const base=v*UC[cat][f];
+  $('ucOut').textContent=v+' '+f+' = '+(base/UC[cat][t]).toPrecision(8).replace(/\.?0+$/,'')+' '+t;
+}
+/* ---------- 化学 ---------- */
+const ELEMENTS=[
+['H','氢',1,1.008,5],['He','氦',2,4.0026,7],['Li','锂',3,6.94,0],['Be','铍',4,9.0122,1],['B','硼',5,10.81,4],['C','碳',6,12.011,5],['N','氮',7,14.007,5],['O','氧',8,15.999,5],['F','氟',9,18.998,6],['Ne','氖',10,20.180,7],
+['Na','钠',11,22.990,0],['Mg','镁',12,24.305,1],['Al','铝',13,26.982,3],['Si','硅',14,28.085,4],['P','磷',15,30.974,5],['S','硫',16,32.06,5],['Cl','氯',17,35.45,6],['Ar','氩',18,39.948,7],['K','钾',19,39.098,0],['Ca','钙',20,40.078,1],
+['Sc','钪',21,44.956,2],['Ti','钛',22,47.867,2],['V','钒',23,50.942,2],['Cr','铬',24,51.996,2],['Mn','锰',25,54.938,2],['Fe','铁',26,55.845,2],['Co','钴',27,58.933,2],['Ni','镍',28,58.693,2],['Cu','铜',29,63.546,2],['Zn','锌',30,65.38,2],
+['Ga','镓',31,69.723,3],['Ge','锗',32,72.630,4],['As','砷',33,74.922,4],['Se','硒',34,78.971,5],['Br','溴',35,79.904,6],['Kr','氪',36,83.798,7],['Rb','铷',37,85.468,0],['Sr','锶',38,87.62,1],['Y','钇',39,88.906,2],['Zr','锆',40,91.224,2],
+['Nb','铌',41,92.906,2],['Mo','钼',42,95.95,2],['Tc','锝',43,98,2],['Ru','钌',44,101.07,2],['Rh','铑',45,102.91,2],['Pd','钯',46,106.42,2],['Ag','银',47,107.87,2],['Cd','镉',48,112.41,2],['In','铟',49,114.82,3],['Sn','锡',50,118.71,3],
+['Sb','锑',51,121.76,4],['Te','碲',52,127.60,4],['I','碘',53,126.90,6],['Xe','氙',54,131.29,7],['Cs','铯',55,132.91,0],['Ba','钡',56,137.33,1],['La','镧',57,138.91,8],['Ce','铈',58,140.12,8],['Pr','镨',59,140.91,8],['Nd','钕',60,144.24,8],
+['Pm','钷',61,145,8],['Sm','钐',62,150.36,8],['Eu','铕',63,151.96,8],['Gd','钆',64,157.25,8],['Tb','铽',65,158.93,8],['Dy','镝',66,162.50,8],['Ho','钬',67,164.93,8],['Er','铒',68,167.26,8],['Tm','铥',69,168.93,8],['Yb','镱',70,173.05,8],
+['Lu','镥',71,174.97,8],['Hf','铪',72,178.49,2],['Ta','钽',73,180.95,2],['W','钨',74,183.84,2],['Re','铼',75,186.21,2],['Os','锇',76,190.23,2],['Ir','铱',77,192.22,2],['Pt','铂',78,195.08,2],['Au','金',79,196.97,2],['Hg','汞',80,200.59,2],
+['Tl','铊',81,204.38,3],['Pb','铅',82,207.2,3],['Bi','铋',83,208.98,3],['Po','钋',84,209,4],['At','砹',85,210,6],['Rn','氡',86,222,7],['Fr','钫',87,223,0],['Ra','镭',88,226,1],['Ac','锕',89,227,9],['Th','钍',90,232.04,9],
+['Pa','镤',91,231.04,9],['U','铀',92,238.03,9],['Np','镎',93,237,9],['Pu','钚',94,244,9],['Am','镅',95,243,9],['Cm','锔',96,247,9],['Bk','锫',97,247,9],['Cf','锎',98,251,9],['Es','锿',99,252,9],['Fm','镄',100,257,9],
+['Md','钔',101,258,9],['No','锘',102,259,9],['Lr','铹',103,266,9],['Rf','钅卢',104,267,2],['Db','钅杜',105,268,2],['Sg','钅喜',106,269,2],['Bh','钅波',107,270,2],['Hs','钅黑',108,269,2],['Mt','鿏',109,278,2],['Ds','鿏',110,281,2],
+['Rg','鿔',111,282,2],['Cn','鿔',112,285,2],['Nh','鉨',113,286,3],['Fl','鈇',114,289,3],['Mc','镆',115,290,3],['Lv','鉝',116,293,3],['Ts','砹',117,294,6],['Og','气',118,294,7]];
+const CAT_NAMES=['碱金属','碱土金属','过渡金属','主族金属','类金属','非金属','卤素','稀有气体','镧系','锕系'];
+const CAT_COLORS=['#e07856','#d4a040','#5a8fc0','#7c6cff','#3ecf8e','#5ea87a','#5ab8b0','#a078c0','#8a93a3','#6e675f'];
+function labChem(){
+  const el=$('lab-chem');if(!el)return;
+  el.innerHTML=`
+    <div class="hsec"><span class="no">01</span><h3>元素周期表（118 元素 · 点击查看）</h3><div class="rule"></div><span style="font-size:11px;color:var(--text-3)">${CAT_NAMES.map((c,i)=>'<span style="color:'+CAT_COLORS[i]+'">■ '+c+'</span>').join(' ')}</span></div>
+    <div id="ptGrid" style="display:grid;grid-template-columns:repeat(18,1fr);gap:3px;overflow-x:auto;padding-bottom:6px"></div>
+    <div id="ptInfo" class="card glass-light" style="padding:14px;margin:12px 0">点击元素查看详情</div>
+    <div class="hsec"><span class="no">02</span><h3>摩尔质量计算</h3><div class="rule"></div></div>
+    <div class="toolbar"><input id="mmIn" class="mono" style="flex:1;max-width:320px" value="CuSO4" placeholder="化学式，如 H2O / CuSO4 / Fe2(SO4)3"><button class="btn btn-sm btn-primary" onclick="mmCalc()">计算</button></div>
+    <div id="mmOut" style="margin-top:8px;font-size:13px"></div>`;
+  const grid=$('ptGrid');
+  const byNum={};ELEMENTS.forEach(e=>byNum[e[2]]=e);
+  let cells='';
+  for(let n=1;n<=118;n++){
+    const e=byNum[n];
+    if(!e){cells+='<div></div>';continue}
+    const col=n<=2?n:(n<=18?(n-8):(n<=54?(n-68<=0?0:0):0));
+    cells+='<div title="'+e[1]+'" onclick="ptShow('+n+')" style="cursor:pointer;border-radius:6px;padding:3px 2px;text-align:center;background:'+CAT_COLORS[e[4]]+'22;color:'+CAT_COLORS[e[4]]+';border:1px solid '+CAT_COLORS[e[4]]+'55"><div style="font-size:8px;opacity:.7">'+n+'</div><div style="font-weight:700;font-size:12px">'+e[0]+'</div><div style="font-size:7.5px;opacity:.8">'+e[1]+'</div></div>';
+  }
+  grid.innerHTML=cells;
+  mmCalc();
+}
+function ptShow(n){
+  const e=ELEMENTS.find(x=>x[2]===n);if(!e)return;
+  $('ptInfo').innerHTML='<div style="display:flex;gap:16px;align-items:center"><div style="font-size:40px;font-weight:700;font-family:var(--font-serif);color:'+CAT_COLORS[e[4]]+'">'+e[0]+'</div><div><b style="font-size:16px">'+e[1]+' · '+e[0]+'</b><div style="font-size:12px;color:var(--text-2);margin-top:4px">原子序数 <b>'+n+'</b> · 相对原子质量 <b>'+e[3]+'</b> · <span style="color:'+CAT_COLORS[e[4]]+'">'+CAT_NAMES[e[4]]+'</span></div><div class="mono" style="font-size:11px;color:var(--text-3);margin-top:4px">摩尔质量 '+e[3]+' g/mol</div></div></div>';
+}
+function mmCalc(){
+  const f=($('mmIn')||{}).value||'';const out=$('mmOut');if(!out)return;
+  const mass={};ELEMENTS.forEach(e=>mass[e[0]]=e[3]);
+  const tokens=f.match(/([A-Z][a-z]?)(\d*\.?\d*)|\(([^()]*)\)(\d*\.?\d*)|·(\d*\.?\d*)/g);
+  if(!tokens){out.innerHTML='<span class="badge badge-danger">无法解析化学式</span>';return}
+  let total=0;
+  const parse=(seg,mult)=>{let sum=0;const re=/([A-Z][a-z]?)(\d*\.?\d*)/g;let m;while((m=re.exec(seg))){sum+=(mass[m[1]]||0)*(m[2]?parseFloat(m[2]):1)}return sum*mult};
+  try{
+    tokens.forEach(t=>{
+      const paren=t.match(/^\(([^()]*)\)(\d*\.?\d*)$/);
+      const dot=t.match(/^·(\d*\.?\d*)$/);
+      if(paren)total+=parse(paren[1],paren[2]?parseFloat(paren[2]):1);
+      else if(dot){/* 与前段相乘略（支持简单式）*/ }
+      else{const re=/([A-Z][a-z]?)(\d*\.?\d*)/g;let m;while((m=re.exec(t))){total+=(mass[m[1]]||0)*(m[2]?parseFloat(m[2]):1)}}
+    });
+    out.innerHTML='总摩尔质量：<b style="font-family:var(--font-serif);font-size:20px;color:var(--accent)">'+total.toFixed(3)+' g/mol</b>';
+  }catch(e){out.innerHTML='<span class="badge badge-danger">计算错误</span>'}
+}
+/* ---------- 生物 ---------- */
+const CODON=(()=>{const b='FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG';
+  const bases='TCAG';const map={};let i=0;
+  for(const a of bases)for(const c of bases)for(const g of bases)for(const t of bases){map[a+c+g]=b[i++]}
+  return map})();
+function labBio(){
+  const el=$('lab-bio');if(!el)return;
+  el.innerHTML=`
+    <div class="hsec"><span class="no">01</span><h3>DNA / RNA 序列工具</h3><div class="rule"></div></div>
+    <textarea id="dnaIn" class="mono" style="width:100%;height:90px" placeholder="输入 DNA 序列（ATGC，自动忽略空白与数字）…">ATGGCCTATTGGTATGAACTTAGAAAAA</textarea>
+    <div class="toolbar" style="margin-top:8px">
+      <button class="btn btn-sm btn-primary" onclick="dnaRun()">分析</button>
+      <button class="btn btn-sm" onclick="dnaRandom()">随机序列</button>
+    </div>
+    <div id="dnaOut" style="margin-top:12px"></div>
+    <div style="font-size:11px;color:var(--text-3);margin-top:8px">中心法则：DNA →(转录) mRNA →(翻译, 起始 ATG) 蛋白质。标准密码子表内置。</div>`;
+  dnaRun();
+}
+function dnaClean(){return ($('dnaIn').value||'').toUpperCase().replace(/[^ATGC]/g,'')}
+function dnaRandom(){const b='ATGC';let s='';for(let i=0;i<60;i++)s+=b[Math.floor(Math.random()*4)];$('dnaIn').value=s;dnaRun()}
+function dnaRun(){
+  const dna=dnaClean();const out=$('dnaOut');if(!out)return;
+  if(!dna){out.innerHTML='<span class="badge badge-warning">请输入序列</span>';return}
+  const comp={A:'T',T:'A',G:'C',C:'G'};
+  const rc=[...dna].map(c=>comp[c]).reverse().join('');
+  const rna=[...dna].map(c=>c==='T'?'U':c).join('');
+  let prot='',started=false;
+  for(let i=0;i+2<dna.length;i+=3){
+    const cod=dna.slice(i,i+3);
+    if(!started){if(cod==='ATG')started=true;else continue}
+    const aa=CODON[cod.replace('T','U').replace(/T/g,'U')];
+    if(!aa)break;
+    if(aa==='*')break;
+    prot+=aa;
+  }
+  const count={A:0,T:0,G:0,C:0};for(const c of dna)count[c]=(count[c]||0)+1;
+  const gc=((count.G+count.C)/dna.length*100).toFixed(1);
+  const aaName={A:'Ala',R:'Arg',N:'Asn',D:'Asp',C:'Cys',Q:'Gln',E:'Glu',G:'Gly',H:'His',I:'Ile',L:'Leu',K:'Lys',M:'Met',F:'Phe',P:'Pro',S:'Ser',T:'Thr',W:'Trp',Y:'Tyr',V:'Val'};
+  out.innerHTML=`<div class="statline" style="margin:0 0 10px;border-top:0;padding-top:0">
+      <div class="st"><b>${dna.length}</b><span>bp</span></div>
+      <div class="st"><b>${gc}%</b><span>GC 含量</span></div>
+      <div class="st"><b>${prot.length||'—'}</b><span>氨基酸（ORF）</span></div>
+    </div>
+    <div class="ledger">
+    <div class="ledger-row" style="grid-template-columns:110px 1fr"><b>反向互补</b><span class="mono" style="font-size:11.5px;word-break:break-all">${rc}</span></div>
+    <div class="ledger-row" style="grid-template-columns:110px 1fr"><b>mRNA</b><span class="mono" style="font-size:11.5px;word-break:break-all">${rna}</span></div>
+    <div class="ledger-row" style="grid-template-columns:110px 1fr"><b>蛋白质</b><span class="mono" style="font-size:11.5px;word-break:break-all">${prot||'(未找到 ATG 起始的 ORF)'}</span></div>
+    <div class="ledger-row" style="grid-template-columns:110px 1fr"><b>碱基组成</b><span class="mono" style="font-size:11.5px">A ${count.A} · T ${count.T} · G ${count.G} · C ${count.C}</span></div>
+    </div>
+    ${prot?'<div style="margin-top:8px;font-size:12px;color:var(--text-3)">氨基酸：'+[...prot].map(a=>aaName[a]||a).join('-')+'</div>':''}`;
+}
+/* ---------- 物理 ---------- */
+function labPhy(){
+  const el=$('lab-phy');if(!el)return;
+  const K=[['c','真空光速','299792458 m/s'],['G','引力常量','6.674e-11 m³/(kg·s²)'],['h','普朗克常量','6.626e-34 J·s'],['e','元电荷','1.602e-19 C'],['Na','阿伏伽德罗常量','6.022e23 /mol'],['k_B','玻尔兹曼常量','1.381e-23 J/K'],['g','标准重力加速度','9.80665 m/s²'],['R','气体常量','8.314 J/(mol·K)'],['σ','斯特藩-玻尔兹曼','5.670e-8 W/(m²·K⁴)'],['ε₀','真空介电常量','8.854e-12 F/m'],['mₑ','电子质量','9.109e-31 kg'],['mₚ','质子质量','1.673e-27 kg'],['u','原子质量单位','1.6605e-27 kg'],['atm','标准大气压','101325 Pa']];
+  el.innerHTML=`
+    <div class="split-64">
+      <div>
+        <div class="hsec"><span class="no">01</span><h3>运动学求解器（匀加速）</h3></div>
+        <div class="toolbar" style="flex-wrap:wrap">
+          <label class="checkbox">v₀ <input id="kv0" type="number" value="0" style="width:80px"> m/s</label>
+          <label class="checkbox">a <input id="ka" type="number" value="9.8" style="width:80px"> m/s²</label>
+          <label class="checkbox">t <input id="kt" type="number" value="3" style="width:80px"> s</label>
+          <button class="btn btn-sm btn-primary" onclick="kinGo()">求解</button>
+        </div>
+        <div id="kinOut" style="margin-top:10px"></div>
+        <canvas id="kinCanvas" width="640" height="200" style="width:100%;height:200px;margin-top:10px;background:var(--code-bg);border-radius:12px"></canvas>
+      </div>
+      <div>
+        <div class="hsec"><span class="no">02</span><h3>E = mc² 质能换算</h3></div>
+        <div class="toolbar"><input id="emMass" type="number" value="1" style="width:110px" step="any"><select id="emUnit" style="width:100px"><option>kg</option><option>g</option><option>u</option></select><button class="btn btn-sm btn-primary" onclick="emc()">换算</button></div>
+        <div id="emcOut" class="mono" style="margin-top:8px;font-size:13px"></div>
+        <div class="hsec"><span class="no">03</span><h3>物理常量表</h3><div class="rule"></div></div>
+        <div class="ledger" style="max-height:46vh;overflow:auto">${K.map(k=>'<div class="ledger-row" style="grid-template-columns:60px 1.2fr 1.4fr"><b class="mono">'+k[0]+'</b><span style="font-size:12px">'+k[1]+'</span><span class="mono" style="font-size:11px;color:var(--text-3)">'+k[2]+'</span></div>').join('')}</div>
+      </div>
+    </div>`;
+  kinGo();
+}
+function kinGo(){
+  const v0=parseFloat($('kv0').value)||0,a=parseFloat($('ka').value)||0,t=parseFloat($('kt').value)||0;
+  const v=v0+a*t,d=v0*t+0.5*a*t*t;
+  $('kinOut').innerHTML='<div class="card glass-light" style="padding:12px;font-size:13px;line-height:1.9">末速度 v = v₀+at = <b class="mono">'+v.toFixed(3)+' m/s</b><br>位移 s = v₀t+½at² = <b class="mono">'+d.toFixed(3)+' m</b></div>';
+  const c=$('kinCanvas');if(!c)return;
+  const ctx=c.getContext('2d'),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  const accent=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#e07856';
+  const N=60,vMax=Math.max(Math.abs(v0),Math.abs(v),0.001);
+  ctx.strokeStyle=accent;ctx.lineWidth=2;ctx.beginPath();
+  for(let i=0;i<=N;i++){
+    const tt=t*i/N,x=20+(W-40)*i/N,y=H/2-(v0+a*tt)/(vMax*1.1)*(H/2-20);
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  }
+  ctx.stroke();
+  ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--text-3');ctx.font='11px sans-serif';
+  ctx.fillText('v-t 图像（0 → '+t+'s）',16,18);
+}
+function emc(){
+  const m=parseFloat($('emMass').value)||0,u=$('emUnit').value;
+  const kg=u==='g'?m/1000:u==='u'?m*1.6605e-27:m;
+  const E=kg*299792458*299792458;
+  $('emcOut').textContent=m+' '+u+' ↔ '+E.toExponential(6)+' J（'+(E/3.6e6).toExponential(3)+' kWh）';
+}
+/* ---------- 历史 ---------- */
+const DYNASTIES=[['夏',-2070,-1600],['商',-1600,-1046],['西周',-1046,-771],['春秋',-770,-476],['战国',-475,-221],['秦',-221,-207],['汉',-202,220],['三国',220,280],['晋',265,420],['南北朝',420,589],['隋',581,618],['唐',618,907],['五代',907,960],['宋',960,1279],['元',1271,1368],['明',1368,1644],['清',1644,1912],['民国',1912,1949],['新中国',1949,2026]];
+function labHis(){
+  const el=$('lab-his');if(!el)return;
+  el.innerHTML=`
+    <div class="hsec"><span class="no">01</span><h3>中国朝代时间轴（内置）</h3><div class="rule"></div></div>
+    <canvas id="dynCanvas" width="900" height="230" style="width:100%;height:230px;background:var(--code-bg);border-radius:12px"></canvas>
+    <div class="hsec"><span class="no">02</span><h3>自定义时间线生成器</h3><div class="rule"></div><span style="font-size:11px;color:var(--text-3)">格式：年份 事件（每行一条，负数为公元前）</span></div>
+    <textarea id="tlIn" class="mono" style="width:100%;height:110px" placeholder="-221 秦统一六国&#10;618 唐朝建立&#10;1969 阿波罗登月">-221 秦统一六国
+618 唐朝建立
+1492 哥伦布抵达美洲
+1969 阿波罗登月
+2026 Avenger V6.0 发布</textarea>
+    <button class="btn btn-sm btn-primary" style="margin-top:8px" onclick="tlDraw($('tlIn').value,'tlCanvas')">生成时间线</button>
+    <canvas id="tlCanvas" width="900" height="200" style="width:100%;height:200px;margin-top:10px;background:var(--code-bg);border-radius:12px"></canvas>`;
+  tlDrawDyn();
+  tlDraw($('tlIn').value,'tlCanvas');
+}
+function tlDrawDyn(){
+  const c=$('dynCanvas');if(!c)return;
+  const ctx=c.getContext('2d'),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  const min=-2100,max=2050,X=y=>30+(W-60)*(y-min)/(max-min);
+  const accent=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#e07856';
+  ctx.strokeStyle='rgba(128,128,128,.4)';ctx.beginPath();ctx.moveTo(30,H/2);ctx.lineTo(W-30,H/2);ctx.stroke();
+  DYNASTIES.forEach((d,i)=>{
+    const y=(i%2===0)?H/2-36:H/2+14;
+    const x1=X(d[1]),x2=X(d[2]);
+    const hue=i*22%360;
+    ctx.fillStyle='hsla('+hue+',45%,55%,.75)';
+    ctx.fillRect(x1,y,x2-x1,22);
+    ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--text-2');
+    ctx.font='11px sans-serif';
+    if(x2-x1>34)ctx.fillText(d[0],x1+4,y+15);
+    else {ctx.fillText(d[0],x1-6,y-4)}
+  });
+  ctx.fillStyle='rgba(128,128,128,.6)';ctx.font='11px sans-serif';
+  [[-2000,'前2000'],[-1000,'前1000'],[0,'公元'],[1000,'1000'],[2000,'2000']].forEach(t=>{ctx.fillText(t[1],X(t[0])-14,H/2+58)});
+}
+function tlDraw(text,id){
+  const c=$(id);if(!c)return;
+  const ctx=c.getContext('2d'),W=c.width,H=c.height;
+  ctx.clearRect(0,0,W,H);
+  const evs=(text||'').splitlines?text.splitlines():text.split('\n');
+  const items=[];
+  (text||'').split('\n').forEach(l=>{
+    const m=l.trim().match(/^(-?\d+)\s+(.+)$/);
+    if(m)items.push([parseInt(m[1]),m[2].slice(0,40)]);
+  });
+  if(!items.length){ctx.fillStyle='#888';ctx.font='12px sans-serif';ctx.fillText('无有效事件行',20,30);return}
+  items.sort((a,b)=>a[0]-b[0]);
+  const min=items[0][0],max=items[items.length-1][0],span=Math.max(max-min,1);
+  const X=y=>40+(W-80)*(y-min)/span;
+  const accent=getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()||'#e07856';
+  ctx.strokeStyle='rgba(128,128,128,.4)';ctx.beginPath();ctx.moveTo(30,H/2);ctx.lineTo(W-30,H/2);ctx.stroke();
+  items.forEach((it,i)=>{
+    const x=X(it[0]),up=i%2===0;
+    ctx.fillStyle=accent;
+    ctx.beginPath();ctx.arc(x,H/2,4,0,6.29);ctx.fill();
+    ctx.strokeStyle='rgba(128,128,128,.35)';ctx.beginPath();ctx.moveTo(x,H/2);ctx.lineTo(x,up?H/2-34:H/2+14);ctx.stroke();
+    ctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--text-2');ctx.font='11px sans-serif';
+    ctx.fillText(it[1],Math.min(x+4,W-140),up?H/2-24:H/2+28);
+    ctx.fillStyle='rgba(128,128,128,.6)';
+    ctx.fillText(String(it[0]),Math.min(x+4,W-60),up?H/2-38:H/2+42);
+  });
+}
+
 let _memoQ='',_memoTag='all',_memoPreview=false;
 function memoTagList(){
   const set=new Set();
@@ -4438,6 +4929,7 @@ function loadSettings(token){
               <option value="mid" ${pLevel==='mid'?'selected':''}>中密度</option>
               <option value="high" ${pLevel==='high'?'selected':''}>高密度</option>
             </select>
+            <label class="checkbox" style="margin-left:10px"><input type="checkbox" ${prefs.get('bg3d',true)?'checked':''} onchange="prefs.set('bg3d',this.checked);location.reload()">3D 玻璃背景</label>
             <span style="font-size:12px;color:var(--text-3);margin-left:10px">玻璃质感</span>
             <select onchange="prefs.set('glassLevel',this.value);applyChrome()">
               <option value="full" ${gLevel==='full'?'selected':''}>全效</option>
@@ -4765,6 +5257,7 @@ async function fillPluginManifest(){
     });
   })();
   if(prefs.get('particleLevel', prefs.get('particles',true)?'mid':'off')!=='off')initParticles();
+  init3DBg();
   switchModule(prefs.get('lastModule','dashboard'));
   applyEyeSchedule();
   if(!prefs.get('tourDone',false))setTimeout(startTour,800);

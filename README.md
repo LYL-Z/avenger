@@ -78,6 +78,8 @@
 - **MCP Client**：stdio JSON-RPC 客户端，任意 MCP 服务器即插即用（与 Claude Desktop 同级互通能力）；
 - **Agent 工作台**（Web）：轨迹瀑布图逐步回放每个 thought/工具调用/耗时，审批卡，会话管理；
 - **avenger_cli.py**：终端入口（对标 codex/aider 体验），`python avenger_cli.py "任务"` 即用。
+- **3D 视觉层**：Three.js 液态玻璃背景（动态加载+FPS 看门狗降级+设置开关）；函数绘图线描动画；
+- **科学实验室**：数学(LaTeX/函数绘图/矩阵/单位) · 化学(118 元素周期表/摩尔质量) · 生物(DNA 翻译/.ORF/GC) · 物理(常数表/运动学/E=mc²) · 历史(朝代时间轴/自定义时间线)。
 
 ### v5.2 — 手机直连 · Agent 生态补全 · 训练闭环
 | 方向 | 内容 |
